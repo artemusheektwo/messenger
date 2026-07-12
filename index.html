@@ -354,12 +354,6 @@
         .chat-list::-webkit-scrollbar, .chat-messages::-webkit-scrollbar, .modal::-webkit-scrollbar { width: 4px; }
         .chat-list::-webkit-scrollbar-track, .chat-messages::-webkit-scrollbar-track, .modal::-webkit-scrollbar-track { background: transparent; }
         .chat-list::-webkit-scrollbar-thumb, .chat-messages::-webkit-scrollbar-thumb, .modal::-webkit-scrollbar-thumb { background: #3a3a3c; border-radius: 4px; }
-
-        .avatar-color-1 { background: #ff7f7f; } .avatar-color-2 { background: #7fc97f; }
-        .avatar-color-3 { background: #7fc9ff; } .avatar-color-4 { background: #ffbf7f; }
-        .avatar-color-5 { background: #bf7fff; } .avatar-color-6 { background: #ff7fbf; }
-        .avatar-color-7 { background: #7fdfbf; } .avatar-color-8 { background: #df7f3f; }
-        .avatar-color-9 { background: #ffdf7f; } .avatar-color-10 { background: #9f7fdf; }
     </style>
 </head>
 <body>
@@ -467,11 +461,6 @@
     
     let chats = [];
     let messages = {};
-    let contacts = [
-        { id: 101, name: 'Анна', color: 'avatar-color-1' },
-        { id: 102, name: 'Максим', color: 'avatar-color-2' },
-        { id: 103, name: 'Елена', color: 'avatar-color-3' },
-    ];
     let channels = [
         { id: 'c1', name: 'Новости IT', description: 'Свежие новости', subscribed: false, owner: false },
         { id: 'c2', name: 'Кино и сериалы', description: 'Обзоры, трейлеры', subscribed: true, owner: false },
@@ -574,7 +563,6 @@
             let foundUser = null;
             if (data) {
                 Object.keys(data).forEach(key => {
-                    // Ключ теперь выглядит как user_username
                     if (key === 'user_' + username && data[key].password === password) {
                         foundUser = { ...data[key], uid: key };
                     }
@@ -604,7 +592,7 @@
             if (isTaken) {
                 alert('Этот username уже занят! Придумайте другой.');
             } else {
-                const uid = 'user_' + username; // Ключ теперь привязан к username
+                const uid = 'user_' + username;
                 const newUser = { username, password, status: 'online', lastSeen: Date.now(), avatar: null };
                 await db.ref('users/' + uid).set(newUser);
                 currentUser = { ...newUser, uid };
@@ -896,7 +884,7 @@
         input.click();
     });
 
-    // ========== ПОИСК ПОЛЬЗОВАТЕЛЯ ==========
+    // ========== ПОИСК ПОЛЬЗОВАТЕЛЯ И СОЗДАНИЕ ЧАТА У ОБОИХ ==========
     window.showFindUser = function() {
         openModal(`
             <h2>🔍 Найти пользователя</h2>
@@ -913,7 +901,6 @@
                 return;
             }
             
-            // Ищем пользователя в базе
             const snapshot = await db.ref('users').once('value');
             const data = snapshot.val();
             let targetUid = null;
@@ -931,36 +918,55 @@
                 return;
             }
 
-            // Проверяем, есть ли уже чат с этим пользователем у нас
+            // Проверяем, есть ли уже чат у нас
             let existingChat = chats.find(c => c.otherUserUid === targetUid);
-            
             if (existingChat) {
                 closeModal();
                 openChat(existingChat.id);
                 return;
             }
 
-            // Создаём новый чат
             const chatId = 'chat_' + Date.now().toString(36);
-            const newChat = {
+            const color = groupColors[Math.floor(Math.random() * groupColors.length)];
+            
+            // Чат для нас (текущий пользователь)
+            const myChat = {
                 id: chatId,
                 name: targetUsername,
                 lastMsg: 'Чат создан',
                 time: 'только что',
-                color: groupColors[Math.floor(Math.random() * groupColors.length)],
+                color: color,
                 type: 'personal',
                 members: [],
                 unread: 0,
                 check: false,
                 pinned: false,
                 archived: false,
-                otherUserUid: targetUid // Сохраняем, чтобы знать, с кем чат
+                otherUserUid: targetUid
             };
             
-            // Сохраняем чат у себя
-            await db.ref('users/' + currentUser.uid + '/chats/' + chatId).set(newChat);
+            // Чат для друга (он видит наше имя)
+            const friendChat = {
+                id: chatId,
+                name: currentUser.username,
+                lastMsg: 'Чат создан',
+                time: 'только что',
+                color: color,
+                type: 'personal',
+                members: [],
+                unread: 0,
+                check: false,
+                pinned: false,
+                archived: false,
+                otherUserUid: currentUser.uid
+            };
+
+            // Сохраняем у обоих одновременно!
+            await db.ref('users/' + currentUser.uid + '/chats/' + chatId).set(myChat);
+            await db.ref('users/' + targetUid + '/chats/' + chatId).set(friendChat);
+
             closeModal();
-            // Ждём, пока подгрузится
+            // Ждём подгрузки и открываем
             setTimeout(() => {
                 const found = chats.find(c => c.id === chatId);
                 if (found) openChat(chatId);
@@ -1171,7 +1177,7 @@
                 localStorage.removeItem('messenger_user');
                 currentUser = { username: '', password: '', uid: '', avatar: null };
                 closeModal(); chatScreen.style.display = 'none'; mainScreen.style.display = 'none'; registerScreen.style.display = 'flex';
-                isLoginMode = true; switchAuthBtn.click(); // Сбрасываем форму
+                isLoginMode = true; switchAuthBtn.click();
             }
         });
     }
@@ -1179,16 +1185,12 @@
     // ========== ГРУППЫ ==========
     window.showCreateGroup = function() {
         let html = `<h2>➕ Создать группу</h2><input type="text" id="groupNameInput" placeholder="Название группы"><div style="color:#8e8e93;font-size:13px;margin:8px 0;">Выберите участников:</div>`;
-        contacts.forEach(c => { html += `<label class="user-check"><input type="checkbox" value="${c.id}" data-name="${c.name}" data-color="${c.color}"><span>${c.name}</span></label>`; });
         html += `<div class="btn-row"><button class="btn-secondary" onclick="closeModal()">Отмена</button><button class="btn-primary" id="createGroupBtn">Создать</button></div>`;
         openModal(html);
         document.getElementById('createGroupBtn').addEventListener('click', () => {
             const name = document.getElementById('groupNameInput').value.trim() || 'Новая группа';
-            const checked = document.querySelectorAll('#modalContent input[type="checkbox"]:checked');
-            if (checked.length === 0) { alert('Выберите участников!'); return; }
-            const members = []; checked.forEach(cb => members.push(parseInt(cb.value)));
             const id = 'g' + Date.now().toString(36);
-            const newChat = { id, name, lastMsg: 'Группа создана!', time: 'только что', color: groupColors[Math.floor(Math.random() * groupColors.length)], type: 'group', members, unread: 0, check: false, pinned: false, archived: false };
+            const newChat = { id, name, lastMsg: 'Группа создана!', time: 'только что', color: groupColors[Math.floor(Math.random() * groupColors.length)], type: 'group', members: [], unread: 0, check: false, pinned: false, archived: false };
             db.ref('users/' + currentUser.uid + '/chats/' + id).set(newChat);
             closeModal();
         });
