@@ -384,7 +384,6 @@
             }
             if (foundUser) {
                 currentUser = foundUser;
-                // Загружаем аватарку из Firebase
                 if (foundUser.avatar) {
                     currentUser.avatar = foundUser.avatar;
                 }
@@ -495,9 +494,8 @@
             const pinIcon = chat.pinned ? '📌 ' : '';
             const favIcon = chat.isFavorite ? '⭐ ' : '';
             
-            // Подгружаем аватарку собеседника из базы, если есть
             let avatarImg = '';
-            if (chat.otherUserUid && chat.otherUserAvatar) {
+            if (chat.otherUserAvatar) {
                 avatarImg = `background-image: url(${chat.otherUserAvatar}); background-size: cover;`;
             }
 
@@ -558,10 +556,8 @@
     }
 
     function openChat(id) {
-        // Если уже открыт этот чат, не перезапускаем
         if (currentChatId === id) return;
         
-        // Отписываемся от старого чата, если был
         if (currentChatId) {
             db.ref('sendmessages').orderByChild('chatId').equalTo(currentChatId).off();
             const oldChat = chats.find(c => c.id === currentChatId);
@@ -580,7 +576,6 @@
         
         chatName.onclick = () => showChatProfile(chat);
         
-        // Слушаем сообщения в папке sendmessages
         const msgRef = db.ref('sendmessages').orderByChild('chatId').equalTo(id);
         msgRef.off();
         msgRef.on('value', (snapshot) => {
@@ -589,7 +584,6 @@
             if (data) {
                 Object.keys(data).forEach(key => {
                     const msg = data[key];
-                    // Определяем, моё это сообщение или чужое
                     if (msg.sender === currentUser.username) {
                         msg.type = 'sent';
                     } else {
@@ -601,7 +595,6 @@
             renderMessages(id);
         });
         
-        // Слушаем "Печатает" (typing)
         listenTyping(id);
         
         mainScreen.style.display = 'none';
@@ -707,12 +700,11 @@
         const now = new Date();
         const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
         
-        // Создаём сообщение в глобальной папке sendmessages
         const msgRef = db.ref('sendmessages').push();
         const msgData = { 
             text, 
             chatId: currentChatId,
-            sender: currentUser.username, // Важно!
+            sender: currentUser.username,
             time,
             replyTo: replyTo || null
         };
@@ -753,7 +745,6 @@
     function listenTyping(chatId) {
         const chat = chats.find(c => c.id === chatId);
         if (!chat || !chat.otherUserUid) return;
-        // Отписываемся от старого слушателя, если был
         const oldRef = db.ref('users/' + currentUser.uid + '/typing/' + chat.otherUserUid);
         oldRef.off();
         
@@ -812,11 +803,13 @@
             const snapshot = await db.ref('users').once('value');
             const data = snapshot.val();
             let targetUid = null;
+            let targetAvatar = null;
             
             if (data) {
                 Object.keys(data).forEach(key => {
                     if (key === 'user_' + targetUsername) {
                         targetUid = key;
+                        targetAvatar = data[key].avatar || null;
                     }
                 });
             }
@@ -849,7 +842,7 @@
                 pinned: false,
                 archived: false,
                 otherUserUid: targetUid,
-                otherUserAvatar: data[targetUid].avatar || null // Сохраняем аву собеседника
+                otherUserAvatar: targetAvatar
             };
             
             const friendChat = {
@@ -865,14 +858,13 @@
                 pinned: false,
                 archived: false,
                 otherUserUid: currentUser.uid,
-                otherUserAvatar: currentUser.avatar || null // Передаём свою аву собеседнику
+                otherUserAvatar: currentUser.avatar
             };
 
             await db.ref('users/' + currentUser.uid + '/chats/' + chatId).set(myChat);
             await db.ref('users/' + targetUid + '/chats/' + chatId).set(friendChat);
 
             closeModal();
-            // Автоматически открываем чат
             openChat(chatId);
         });
     }
@@ -1162,17 +1154,8 @@
                     localStorage.setItem('messenger_user', JSON.stringify(currentUser));
                     updateMainAvatar();
                     
-                    // ОТПРАВЛЯЕМ АВУ В БАЗУ
                     if (currentUser.uid) {
                         db.ref('users/' + currentUser.uid + '/avatar').set(ev.target.result);
-                        // Также обновляем аву у друзей в чатах
-                        const updates = {};
-                        chats.forEach(chat => {
-                            if (chat.otherUserUid === currentUser.uid) {
-                                updates['users/' + chat.uid + '/chats/' + chat.id + '/otherUserAvatar'] = ev.target.result;
-                            }
-                        });
-                        db.ref().update(updates);
                     }
                     
                     alert('Аватарка обновлена и сохранена для всех!');
