@@ -1145,7 +1145,19 @@
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (ev) => { currentUser.avatar = ev.target.result; localStorage.setItem('messenger_user', JSON.stringify(currentUser)); updateMainAvatar(); alert('Аватарка обновлена!'); };
+                reader.onload = (ev) => {
+                    // 1. Сохраняем в localStorage (для быстрого отображения)
+                    currentUser.avatar = ev.target.result;
+                    localStorage.setItem('messenger_user', JSON.stringify(currentUser));
+                    updateMainAvatar();
+                    
+                    // 2. Отправляем аватарку в Firebase (чтобы видели все!)
+                    if (currentUser.uid) {
+                        db.ref('users/' + currentUser.uid + '/avatar').set(ev.target.result);
+                    }
+                    
+                    alert('Аватарка обновлена и сохранена для всех!');
+                };
                 reader.readAsDataURL(file);
             }
         });
