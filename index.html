@@ -548,6 +548,18 @@
     }
 
     function openChat(id) {
+        // Если уже открыт этот чат, не перезапускаем
+        if (currentChatId === id) return;
+        
+        // Отписываемся от старого чата, если был
+        if (currentChatId) {
+            db.ref('sendmessages').orderByChild('chatId').equalTo(currentChatId).off();
+            const oldChat = chats.find(c => c.id === currentChatId);
+            if (oldChat && oldChat.otherUserUid) {
+                db.ref('users/' + currentUser.uid + '/typing/' + oldChat.otherUserUid).off();
+            }
+        }
+        
         currentChatId = id; 
         const chat = chats.find(c => c.id === id); 
         if (!chat) return;
@@ -558,7 +570,7 @@
         
         chatName.onclick = () => showChatProfile(chat);
         
-        // Теперь слушаем сообщения в папке sendmessages
+        // Слушаем сообщения в папке sendmessages
         const msgRef = db.ref('sendmessages').orderByChild('chatId').equalTo(id);
         msgRef.off();
         msgRef.on('value', (snapshot) => {
@@ -578,6 +590,10 @@
             }
             renderMessages(id);
         });
+        
+        // Слушаем "Печатает" (typing)
+        listenTyping(id);
+        
         mainScreen.style.display = 'none';
         chatScreen.style.display = 'flex';
         chatInput.focus();
@@ -727,6 +743,10 @@
     function listenTyping(chatId) {
         const chat = chats.find(c => c.id === chatId);
         if (!chat || !chat.otherUserUid) return;
+        // Отписываемся от старого слушателя, если был
+        const oldRef = db.ref('users/' + currentUser.uid + '/typing/' + chat.otherUserUid);
+        oldRef.off();
+        
         const typingRef = db.ref('users/' + currentUser.uid + '/typing/' + chat.otherUserUid);
         typingRef.on('value', (snapshot) => {
             const isTyping = snapshot.val();
@@ -840,42 +860,11 @@
             await db.ref('users/' + targetUid + '/chats/' + chatId).set(friendChat);
 
             closeModal();
-                    setTimeout(() => {
-                const found = chats.find(c => c.id === chatId);
-                if (found) {
-                    // Убираем рекурсивный вызов openChat(chatId)!
-                    // Просто обновляем переменную currentChatId и вызываем открытие
-                    currentChatId = chatId; 
-                    mainScreen.style.display = 'none';
-                    chatScreen.style.display = 'flex';
-                    chatInput.focus();
-                    
-                    // Загружаем сообщения и включаем "Печатает"
-                    const msgRef = db.ref('sendmessages').orderByChild('chatId').equalTo(chatId);
-                    msgRef.off();
-                    msgRef.on('value', (snapshot) => {
-                        const data = snapshot.val();
-                        messages[chatId] = [];
-                        if (data) {
-                            Object.keys(data).forEach(key => {
-                                const msg = data[key];
-                                if (msg.sender === currentUser.username) {
-                                    msg.type = 'sent';
-                                } else {
-                                    msg.type = 'received';
-                                }
-                                messages[chatId].push({ ...msg, id: key });
-                            });
-                        }
-                        renderMessages(chatId);
-                    });
-                    
-                    // Запускаем "Печатает" без рекурсии
-                    listenTyping(chatId);
-                }
-            }, 500);
+            // Автоматически открываем чат
+            openChat(chatId);
         });
     }
+
     function showChatProfile(chat) {
         if (!chat) return;
         const avatarText = (chat.name || '?').charAt(0).toUpperCase();
