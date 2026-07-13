@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Мессенджер</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
@@ -21,7 +21,7 @@
         #registerScreen .switch-btn:hover { color: var(--accent-color, #8a5cf5); }
 
         #mainScreen { display: none; flex-direction: column; height: 100%; }
-        .main-header { padding: 16px 16px 8px; display: flex; align-items: center; justify-content: space-between; background: #1c1c1e; }
+        .main-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; background: #1c1c1e; min-height: 60px; }
         .main-header .title-area { display: flex; align-items: center; gap: 12px; }
         .main-header .avatar-stack { display: flex; align-items: center; }
         .main-header .avatar-stack .mini-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #1c1c1e; margin-left: -10px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: white; }
@@ -176,7 +176,6 @@
         .chat-list::-webkit-scrollbar-track, .chat-messages::-webkit-scrollbar-track, .modal::-webkit-scrollbar-track { background: transparent; }
         .chat-list::-webkit-scrollbar-thumb, .chat-messages::-webkit-scrollbar-thumb, .modal::-webkit-scrollbar-thumb { background: #3a3a3c; border-radius: 4px; }
 
-        /* ====== ВНУТРЕННИЕ УВЕДОМЛЕНИЯ ====== */
         #toast-container {
             position: absolute;
             top: 20px;
@@ -213,7 +212,6 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
-        /* ====== КНОПКА РАЗРЕШЕНИЯ УВЕДОМЛЕНИЙ ====== */
         .notification-request-btn {
             position: fixed;
             bottom: 20px;
@@ -239,7 +237,6 @@
 </head>
 <body>
 <div class="app" id="appContainer">
-    <!-- РЕГИСТРАЦИЯ -->
     <div id="registerScreen">
         <h1 id="authTitle">Вход</h1>
         <div class="subtitle" id="authSubtitle">Войдите, чтобы продолжить</div>
@@ -249,7 +246,6 @@
         <button class="switch-btn" id="switchAuthBtn">Нет аккаунта? Зарегистрироваться</button>
     </div>
 
-    <!-- ГЛАВНЫЙ ЭКРАН -->
     <div id="mainScreen">
         <div class="main-header">
             <div class="title-area">
@@ -274,7 +270,6 @@
         <div class="chat-list" id="chatList"></div>
     </div>
 
-    <!-- ЭКРАН ЧАТА -->
     <div id="chatScreen">
         <div class="chat-header">
             <button class="back-btn" id="backToChats">←</button>
@@ -292,7 +287,6 @@
         </div>
     </div>
 
-    <!-- ВЫПАДАЮЩЕЕ МЕНЮ -->
     <div class="dropdown-overlay" id="dropdownOverlay">
         <div class="dropdown-menu">
             <button class="dropdown-item" onclick="closeDropdown(); showFindUser();"><span class="icon active-icon">🔍</span> Найти пользователя</button>
@@ -304,11 +298,9 @@
         </div>
     </div>
 
-    <!-- КОНТЕКСТНЫЕ МЕНЮ -->
     <div class="context-overlay" id="contextOverlay"><div class="context-menu" id="contextMenu"></div></div>
     <div class="msg-context-overlay" id="msgContextOverlay"><div class="msg-context-menu" id="msgContextMenu"></div></div>
 
-    <!-- БРАУЗЕР -->
     <div class="browser-overlay" id="browserOverlay">
         <div class="browser-header">
             <button class="close-btn" onclick="closeBrowser()">✕</button>
@@ -317,13 +309,10 @@
         <div class="browser-content" id="browserContent"></div>
     </div>
 
-    <!-- МОДАЛЬНЫЕ ОКНА -->
     <div class="modal-overlay" id="modalOverlay"><div class="modal" id="modalContent"></div></div>
 
-    <!-- КОНТЕЙНЕР ДЛЯ УВЕДОМЛЕНИЙ -->
     <div id="toast-container"></div>
 
-    <!-- КНОПКА РАЗРЕШЕНИЯ УВЕДОМЛЕНИЙ -->
     <button class="notification-request-btn" id="notificationBtn">🔔 Включить уведомления</button>
 </div>
 
@@ -360,6 +349,7 @@
     let contextChatId = null;
     let chatListener = null;
     let typingTimeout = null;
+    let lastNotifiedMsg = {}; // Для предотвращения двойных уведомлений
 
     const appContainer = document.getElementById('appContainer');
     const registerScreen = document.getElementById('registerScreen');
@@ -398,7 +388,6 @@
 
     let currentChatId = null;
 
-    // ========== ПЕРЕКЛЮЧЕНИЕ ВХОДА/РЕГИСТРАЦИИ ==========
     switchAuthBtn.addEventListener('click', () => {
         isLoginMode = !isLoginMode;
         if (isLoginMode) {
@@ -415,7 +404,6 @@
         authPassword.value = '';
     });
 
-    // ========== АВТОВХОД ==========
     window.addEventListener('load', () => {
         setTimeout(() => { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); }, 300);
         const savedUser = localStorage.getItem('messenger_user');
@@ -423,7 +411,6 @@
         if (savedSettings) userSettings = JSON.parse(savedSettings);
         if (userSettings.accentColor) applyAccentColor(userSettings.accentColor);
         
-        // Проверяем разрешение на уведомления
         if ("Notification" in window && Notification.permission === "default") {
             document.getElementById('notificationBtn').style.display = 'block';
         }
@@ -440,7 +427,6 @@
         }
     });
 
-    // ========== ВХОД / РЕГИСТРАЦИЯ ==========
     authBtn.addEventListener('click', async () => {
         const username = authUsername.value.trim();
         const password = authPassword.value.trim();
@@ -503,7 +489,6 @@
         }
     });
 
-    // ========== СТАТУС ИНТЕРНЕТА ==========
     async function checkInternetAndUpdateStatus() {
         try {
             await fetch('https://firebase.google.com/', { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
@@ -546,7 +531,6 @@
         }
     }
 
-    // ========== СЛУШАТЕЛЬ ЧАТОВ ==========
     function startListeningChats() {
         if (chatListener) chatListener.off();
         chatListener = db.ref('users/' + currentUser.uid + '/chats');
@@ -638,7 +622,6 @@
         });
     }
 
-    // ========== ОТКРЫТИЕ ЧАТА ==========
     function openChat(id) {
         if (currentChatId === id) return;
         
@@ -672,6 +655,17 @@
                         msg.type = 'sent';
                     } else {
                         msg.type = 'received';
+                        // Уведомление о новом сообщении
+                        if (lastNotifiedMsg[id] !== key) {
+                            lastNotifiedMsg[id] = key;
+                            showToast(chat.name || 'Новое сообщение', msg.text);
+                            if (("Notification" in window) && Notification.permission === "granted") {
+                                new Notification(chat.name || 'Новое сообщение', { 
+                                    body: msg.text, 
+                                    icon: 'https://i.ibb.co/Pv3K1PvK/icon.png' 
+                                });
+                            }
+                        }
                     }
                     messages[id].push({ ...msg, id: key });
                 });
@@ -686,7 +680,6 @@
         chatInput.focus();
     }
 
-    // ========== ОТРИСОВКА СООБЩЕНИЙ ==========
     function renderMessages(chatId) {
         chatMessages.innerHTML = '';
         const chat = chats.find(c => c.id === chatId);
@@ -780,7 +773,6 @@
         if (typingIndicator) typingIndicator.remove();
     }
 
-    // ========== ОТПРАВКА СООБЩЕНИЯ ==========
     function sendChatMessage(text, replyTo = null) {
         if (!text || currentChatId === null) return;
         const now = new Date();
@@ -814,7 +806,6 @@
         }
     });
 
-    // ========== СТАТУС ПЕЧАТАНИЯ (TYPING) ==========
     chatInput.addEventListener('input', () => {
         if (!currentChatId) return;
         clearTimeout(typingTimeout);
@@ -851,7 +842,6 @@
         });
     }
 
-    // ========== ОТВЕТ (REPLY) ==========
     function setReply(msgText) {
         replyingTo = msgText;
         const old = document.getElementById('replyPreview');
@@ -872,7 +862,6 @@
         document.getElementById('replyPreview')?.remove();
     };
 
-    // ========== ПОИСК ПОЛЬЗОВАТЕЛЯ ==========
     window.showFindUser = function() {
         openModal(`
             <h2>🔍 Найти пользователя</h2>
@@ -958,7 +947,6 @@
         });
     }
 
-    // ========== ПРОФИЛЬ СОБЕСЕДНИКА ==========
     function showChatProfile(chat) {
         if (!chat) return;
         const avatarText = (chat.name || '?').charAt(0).toUpperCase();
@@ -972,7 +960,6 @@
         `);
     }
 
-    // ========== ЗАГРУЗКА ФАЙЛОВ / ФОТО ==========
     uploadBtn.addEventListener('click', () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -1029,7 +1016,6 @@
         } catch (err) { alert('Ошибка соединения с ImgBB: ' + err.message); }
     }
 
-    // ========== КОНТЕКСТНОЕ МЕНЮ ЧАТА ==========
     function showChatContextMenu(chatId) {
         contextChatId = chatId;
         const chat = chats.find(c => c.id === chatId);
@@ -1073,7 +1059,6 @@
     function closeContext() { contextOverlay.classList.remove('active'); contextChatId = null; }
     contextOverlay.addEventListener('click', (e) => { if (e.target === contextOverlay) closeContext(); });
 
-    // ========== КОНТЕКСТНОЕ МЕНЮ СООБЩЕНИЯ ==========
     function showMsgContextMenu(chatId, msgIndex) {
         contextMessageData = { chatId, msgIndex };
         const msg = messages[chatId][msgIndex];
@@ -1116,7 +1101,6 @@
     function closeMsgContext() { msgContextOverlay.classList.remove('active'); contextMessageData = null; }
     msgContextOverlay.addEventListener('click', (e) => { if (e.target === msgContextOverlay) closeMsgContext(); });
 
-    // ========== ПЕРЕСЫЛКА ==========
     function showForwardMenu(chatId, msgIndex) {
         const msg = messages[chatId][msgIndex];
         if (!msg) return;
@@ -1151,7 +1135,6 @@
         db.ref('users/' + currentUser.uid + '/chats/' + chat.id).update(chat);
     }
 
-    // ========== ИЗБРАННОЕ ==========
     window.showFavorites = function() {
         closeDropdown();
         const favs = chats.filter(c => c.isFavorite);
@@ -1170,7 +1153,6 @@
         }
     };
 
-    // ========== БРАУЗЕР ==========
     function openBrowser(url, isImage) {
         if (!url) return;
         browserUrl.value = url;
@@ -1185,7 +1167,6 @@
     }
     function closeBrowser() { browserOverlay.classList.remove('active'); browserContent.innerHTML = ''; browserUrl.value = ''; }
 
-    // ========== НАЗАД К ЧАТАМ ==========
     backBtn.addEventListener('click', () => {
         db.ref('sendmessages').orderByChild('chatId').equalTo(currentChatId).off();
         const chat = chats.find(c => c.id === currentChatId);
@@ -1197,7 +1178,6 @@
         renderChats();
     });
 
-    // ========== МОДАЛЬНЫЕ ОКНА ==========
     function openModal(html) { modalContent.innerHTML = html; modalOverlay.classList.add('active'); }
     function closeModal() { modalOverlay.classList.remove('active'); }
     modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
@@ -1207,7 +1187,6 @@
     menuBtn.addEventListener('click', toggleDropdown);
     dropdownOverlay.addEventListener('click', (e) => { if (e.target === dropdownOverlay) closeDropdown(); });
 
-    // ========== ПРОФИЛЬ ==========
     window.showProfile = function() {
         const avatarSrc = currentUser.avatar ? `<img src="${currentUser.avatar}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block;">` : 
                           `<div class="avatar-preview">${(currentUser.username || '?').charAt(0).toUpperCase()}</div>`;
@@ -1219,7 +1198,6 @@
         `);
     }
 
-    // ========== НАСТРОЙКИ ==========
     window.showSettings = function() {
         const html = `
             <h2>⚙️ Настройки</h2>
@@ -1274,7 +1252,6 @@
         });
     }
 
-    // ========== ГРУППЫ ==========
     window.showCreateGroup = function() {
         let html = `<h2>➕ Создать группу</h2><input type="text" id="groupNameInput" placeholder="Название группы"><div style="color:#8e8e93;font-size:13px;margin:8px 0;">Выберите участников:</div>`;
         html += `<div class="btn-row"><button class="btn-secondary" onclick="closeModal()">Отмена</button><button class="btn-primary" id="createGroupBtn">Создать</button></div>`;
@@ -1288,7 +1265,6 @@
         });
     }
 
-    // ========== КАНАЛЫ ==========
     window.showChannels = function() {
         let html = `<h2>📢 Каналы</h2><button class="create-channel-btn" id="createChannelBtn">➕ Создать свой канал</button><div style="color:#8e8e93;font-size:13px;margin-bottom:8px;">Доступные каналы:</div>`;
         channels.forEach(ch => {
@@ -1314,69 +1290,8 @@
         });
     }
 
-    // ========== ПОИСК ==========
     searchInput.addEventListener('input', (e) => { renderChats(e.target.value); });
     authUsername.focus();
-
-    // ========== УВЕДОМЛЕНИЯ ==========
-    const notificationBtn = document.getElementById('notificationBtn');
-
-    function sendSystemNotification(title, body) {
-        if (!("Notification" in window)) return;
-        if (Notification.permission === "granted") {
-            new Notification(title, { body: body, icon: 'https://i.ibb.co/Pv3K1PvK/icon.png' });
-        }
-    }
-
-    // Показываем тост внутри приложения
-    function showToast(title, message) {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.innerHTML = `
-            <div class="toast-title">${title}</div>
-            <div class="toast-body">${message}</div>
-        `;
-        container.appendChild(toast);
-        setTimeout(() => {
-            toast.style.animation = 'slideInRight 0.3s ease-out reverse';
-            setTimeout(() => toast.remove(), 300);
-        }, 4000);
-    }
-
-    notificationBtn.addEventListener('click', async () => {
-        const permission = await Notification.requestPermission();
-        if (permission === "granted") {
-            notificationBtn.style.display = 'none';
-            new Notification("Уведомления включены!", { body: "Теперь вы будете получать уведомления о новых сообщениях.", icon: 'https://i.ibb.co/Pv3K1PvK/icon.png' });
-        }
-    });
-
-    // КОГДА ПРИХОДИТ НОВОЕ СООБЩЕНИЕ, ДЕЛАЕМ УВЕДОМЛЕНИЕ
-    // В функции renderMessages (уже есть) мы добавили вызов showToast для внутренних.
-    // Дополним её системным уведомлением, если пришло сообщение от другого:
-    // Для этого заменим функцию renderMessages ниже полностью:
-
-    // Переопределим renderMessages, чтобы добавить уведомления при получении
-    const originalRender = window.renderMessages; // не используется, просто для ясности
-    // Функция уже переписана выше с уведомлениями. Для надёжности добавим вызов в конец.
-    // Мы также добавим вызов уведомлений в саму функцию при получении данных.
-    
-    // ВАЖНО: В функции openChat, где мы обрабатываем msgRef.on('value', ...), 
-    // мы сейчас вызываем renderMessages(id).
-    // Чтобы сделать уведомление для каждого нового сообщения, мы добавим простую логику внутри renderMessages:
-    
-    // Заменим функцию renderMessages на улучшенную версию:
-    const _origRenderMessages = renderMessages;
-    renderMessages = function(chatId) {
-        _origRenderMessages(chatId);
-        // Если мы не в активном чате (или это сообщение от другого), можно показать уведомление
-        // Но так как мы уже вызываем showToast внутри, оставим как есть.
-    }
-    
-    // Показываем уведомления при загрузке сообщений, если есть новые
-    // Для этого в функции openChat, внутри msgRef.on('value', ...) добавим проверку на новые сообщения:
-    // Это уже реализовано выше.
 </script>
 </body>
 </html>
