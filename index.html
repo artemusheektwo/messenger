@@ -670,9 +670,10 @@
             await fetch('https://firebase.google.com/', { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' });
             isOnline = true;
             if (currentUser.username) {
-                connectionTitle.textContent = `Соединение... ${currentUser.username}`;
+                // ЗДЕСЬ ИЗМЕНЕНИЕ: просто имя, без лишнего текста
+                connectionTitle.textContent = currentUser.username;
             } else {
-                connectionTitle.textContent = 'Соединение...';
+                connectionTitle.textContent = '...';
             }
         } catch {
             isOnline = false;
@@ -800,7 +801,7 @@
         if (!chat) return;
         chatAvatar.className = `avatar ${chat.color || 'avatar-color-1'}`;
         chatAvatar.textContent = (chat.name || '?').charAt(0).toUpperCase();
-        chatName.textContent = chat.name || 'Без названия';
+        chatName.textContent = chat.name || 'Контакт';
         chatStatus.textContent = chat.type === 'group' ? 'группа' : 'онлайн';
         
         chatName.onclick = () => showChatProfile(chat);
