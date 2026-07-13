@@ -840,16 +840,42 @@
             await db.ref('users/' + targetUid + '/chats/' + chatId).set(friendChat);
 
             closeModal();
-            setTimeout(() => {
+                    setTimeout(() => {
                 const found = chats.find(c => c.id === chatId);
                 if (found) {
-                    openChat(chatId);
+                    // Убираем рекурсивный вызов openChat(chatId)!
+                    // Просто обновляем переменную currentChatId и вызываем открытие
+                    currentChatId = chatId; 
+                    mainScreen.style.display = 'none';
+                    chatScreen.style.display = 'flex';
+                    chatInput.focus();
+                    
+                    // Загружаем сообщения и включаем "Печатает"
+                    const msgRef = db.ref('sendmessages').orderByChild('chatId').equalTo(chatId);
+                    msgRef.off();
+                    msgRef.on('value', (snapshot) => {
+                        const data = snapshot.val();
+                        messages[chatId] = [];
+                        if (data) {
+                            Object.keys(data).forEach(key => {
+                                const msg = data[key];
+                                if (msg.sender === currentUser.username) {
+                                    msg.type = 'sent';
+                                } else {
+                                    msg.type = 'received';
+                                }
+                                messages[chatId].push({ ...msg, id: key });
+                            });
+                        }
+                        renderMessages(chatId);
+                    });
+                    
+                    // Запускаем "Печатает" без рекурсии
                     listenTyping(chatId);
                 }
             }, 500);
         });
     }
-
     function showChatProfile(chat) {
         if (!chat) return;
         const avatarText = (chat.name || '?').charAt(0).toUpperCase();
