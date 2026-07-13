@@ -384,7 +384,10 @@
             }
             if (foundUser) {
                 currentUser = foundUser;
-                currentUser.avatar = foundUser.avatar || null;
+                // Загружаем аватарку из Firebase
+                if (foundUser.avatar) {
+                    currentUser.avatar = foundUser.avatar;
+                }
                 localStorage.setItem('messenger_user', JSON.stringify(currentUser));
                 registerScreen.style.display = 'none';
                 mainScreen.style.display = 'flex';
@@ -491,8 +494,15 @@
             const checkIcon = chat.check ? '<span class="check">✓</span>' : '';
             const pinIcon = chat.pinned ? '📌 ' : '';
             const favIcon = chat.isFavorite ? '⭐ ' : '';
+            
+            // Подгружаем аватарку собеседника из базы, если есть
+            let avatarImg = '';
+            if (chat.otherUserUid && chat.otherUserAvatar) {
+                avatarImg = `background-image: url(${chat.otherUserAvatar}); background-size: cover;`;
+            }
+
             item.innerHTML = `
-                <div class="avatar ${chat.color || 'avatar-color-1'}">${(chat.name || '?').charAt(0).toUpperCase()}</div>
+                <div class="avatar ${chat.color || 'avatar-color-1'}" style="${avatarImg}">${(chat.name || '?').charAt(0).toUpperCase()}</div>
                 <div class="info">
                     <div class="row"><div class="name">${favIcon}${pinIcon}${chat.name || 'Без названия'}</div><div class="time">${chat.time || ''}</div></div>
                     <div class="row"><div class="last-msg">${checkIcon} ${chat.lastMsg || ''}</div>${unreadBadge}</div>
@@ -838,7 +848,8 @@
                 check: false,
                 pinned: false,
                 archived: false,
-                otherUserUid: targetUid
+                otherUserUid: targetUid,
+                otherUserAvatar: data[targetUid].avatar || null // Сохраняем аву собеседника
             };
             
             const friendChat = {
@@ -853,7 +864,8 @@
                 check: false,
                 pinned: false,
                 archived: false,
-                otherUserUid: currentUser.uid
+                otherUserUid: currentUser.uid,
+                otherUserAvatar: currentUser.avatar || null // Передаём свою аву собеседнику
             };
 
             await db.ref('users/' + currentUser.uid + '/chats/' + chatId).set(myChat);
@@ -1146,14 +1158,21 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
-                    // 1. Сохраняем в localStorage (для быстрого отображения)
                     currentUser.avatar = ev.target.result;
                     localStorage.setItem('messenger_user', JSON.stringify(currentUser));
                     updateMainAvatar();
                     
-                    // 2. Отправляем аватарку в Firebase (чтобы видели все!)
+                    // ОТПРАВЛЯЕМ АВУ В БАЗУ
                     if (currentUser.uid) {
                         db.ref('users/' + currentUser.uid + '/avatar').set(ev.target.result);
+                        // Также обновляем аву у друзей в чатах
+                        const updates = {};
+                        chats.forEach(chat => {
+                            if (chat.otherUserUid === currentUser.uid) {
+                                updates['users/' + chat.uid + '/chats/' + chat.id + '/otherUserAvatar'] = ev.target.result;
+                            }
+                        });
+                        db.ref().update(updates);
                     }
                     
                     alert('Аватарка обновлена и сохранена для всех!');
