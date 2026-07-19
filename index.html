@@ -52,16 +52,32 @@
         #authScreen {
             display: none; flex-direction: column; justify-content: center; padding: 30px; height: 100%; z-index: 2;
             background: var(--bg-color); animation: fadeUp 0.4s ease-out;
+            position: relative; overflow: hidden;
         }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-        .auth-header { text-align: center; margin-bottom: 30px; }
+        /* ====== СЕРЫЕ ШАРИКИ (ПУЗЫРЬКИ) НА ФОНЕ ====== */
+        #bubbles-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; overflow: hidden; pointer-events: none;
+        }
+        .bubble {
+            position: absolute; bottom: -80px; background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%; box-shadow: inset 0 0 10px rgba(255,255,255,0.05);
+            animation: floatUp linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1) rotate(0deg); opacity: 0.6; }
+            100% { transform: translateY(-120vh) scale(1.2) rotate(720deg); opacity: 0; }
+        }
+
+        .auth-header { text-align: center; margin-bottom: 30px; position: relative; z-index: 1; }
         .auth-header .auth-logo { font-size: 32px; font-weight: 700; color: #fff; }
         .auth-header .auth-logo span { color: var(--accent-color); }
         .auth-header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
 
         /* ДВЕ ГЛАВНЫЕ КНОПКИ НА ВХОДЕ */
-        .auth-main-buttons { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
+        .auth-main-buttons { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; position: relative; z-index: 1; }
         .auth-main-btn {
             width: 100%; padding: 16px; border-radius: 14px; font-size: 17px; font-weight: 600; cursor: pointer;
             border: none; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -73,11 +89,11 @@
 
         /* Область с полями (изначально скрыта) */
         #authFormContainer {
-            display: none; /* Скрыто по умолчанию */
-            animation: fadeUp 0.4s ease-out;
+            display: none; animation: fadeUp 0.4s ease-out;
+            position: relative; z-index: 1;
         }
 
-        .auth-input { width: 100%; background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 14px 16px; border-radius: 12px; color: #fff; font-size: 15px; margin-bottom: 12px; outline: none; transition: 0.2s; }
+        .auth-input { width: 100%; background: rgba(44, 44, 46, 0.7); backdrop-filter: blur(5px); border: 1px solid var(--border-color); padding: 14px 16px; border-radius: 12px; color: #fff; font-size: 15px; margin-bottom: 12px; outline: none; transition: 0.2s; }
         .auth-input:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(138, 92, 245, 0.2); }
         .auth-input::placeholder { color: var(--text-muted); }
 
@@ -96,7 +112,7 @@
         .auth-submit-btn:hover { filter: brightness(1.1); }
         .auth-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
 
-        .auth-back-link { text-align: center; margin-top: 16px; color: var(--text-muted); font-size: 14px; cursor: pointer; display: none; }
+        .auth-back-link { text-align: center; margin-top: 16px; color: var(--text-muted); font-size: 14px; cursor: pointer; display: none; position: relative; z-index: 1; }
         .auth-back-link span { color: var(--accent-color); font-weight: 600; }
         .auth-back-link span:hover { text-decoration: underline; }
 
@@ -168,6 +184,46 @@
         .chat-input .upload-btn { background: transparent; color: var(--text-muted); font-size: 22px; width: auto; padding: 0 4px; }
         .chat-input .upload-btn:hover { color: var(--accent-color); }
 
+        /* ====== ВЫПАДАЮЩЕЕ МЕНЮ (ТРИ ТОЧКИ) ====== */
+        .dropdown-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            justify-content: flex-end;
+            align-items: flex-start;
+        }
+        .dropdown-overlay.active { display: flex; }
+        .dropdown-menu {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 6px 0;
+            margin-top: 65px;
+            margin-right: 10px;
+            min-width: 200px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+        }
+        .dropdown-item {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            padding: 12px 16px;
+            font-size: 15px;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: 0.1s;
+        }
+        .dropdown-item:hover { background: var(--bg-color); }
+        .dropdown-item .icon { font-size: 18px; width: 20px; text-align: center; }
+
         /* ====== МОДАЛЬНЫЕ ОКНА ====== */
         .modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 100; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; }
@@ -211,6 +267,36 @@
             white-space: nowrap; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
         .notification-request-btn:hover { background: rgba(138, 92, 245, 0.4); transform: translateX(-50%) scale(1.05); }
+
+        /* ====== КОНТЕКСТНЫЕ МЕНЮ (ДОЛГОЕ НАЖАТИЕ) ====== */
+        .context-overlay, .msg-context-overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center;
+        }
+        .context-overlay.active, .msg-context-overlay.active { display: flex; }
+        .context-menu, .msg-context-menu {
+            background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px;
+            padding: 8px 0; min-width: 220px; box-shadow: 0 8px 30px rgba(0,0,0,0.6); display: flex; flex-direction: column;
+        }
+        .context-item, .msg-context-item {
+            background: transparent; border: none; color: var(--text-color); padding: 12px 16px;
+            font-size: 15px; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background 0.15s;
+        }
+        .context-item:hover, .msg-context-item:hover { background: var(--bg-color); }
+        .context-item.danger, .msg-context-item.danger { color: #ff6b6b; }
+        .context-item .icon, .msg-context-item .icon { font-size: 18px; width: 24px; text-align: center; }
+
+        /* ====== БРАУЗЕР ====== */
+        .browser-overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0f0f0f; z-index: 150; flex-direction: column;
+        }
+        .browser-overlay.active { display: flex; }
+        .browser-header { padding: 12px; display: flex; align-items: center; gap: 12px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); }
+        .browser-header .close-btn { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 4px; }
+        .browser-header .url-bar { flex: 1; background: var(--bg-color); border: none; padding: 8px 12px; border-radius: 8px; color: #fff; font-size: 14px; }
+        .browser-content { flex: 1; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #0f0f0f; }
+        .browser-content.img-mode img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -227,6 +313,9 @@
 
     <!-- ЭКРАН ВХОДА/РЕГИСТРАЦИИ -->
     <div id="authScreen">
+        <!-- КОНТЕЙНЕР ДЛЯ ШАРИКОВ -->
+        <div id="bubbles-container"></div>
+
         <div class="auth-header">
             <div class="auth-logo">sae <span>chat</span></div>
             <p>Войдите или создайте аккаунт</p>
@@ -324,11 +413,11 @@
     <!-- МЕНЮ -->
     <div class="dropdown-overlay" id="dropdownOverlay">
         <div class="dropdown-menu">
-            <button class="dropdown-item" onclick="closeDropdown(); showFavorites();"><span class="icon active-icon">⭐</span> Избранное</button>
-            <button class="dropdown-item" onclick="closeDropdown(); showProfile();"><span class="icon active-icon">🧑‍💻</span> Профиль</button>
-            <button class="dropdown-item" onclick="closeDropdown(); showSettings();"><span class="icon active-icon">⚙️</span> Настройки</button>
-            <button class="dropdown-item" onclick="closeDropdown(); showCreateGroup();"><span class="icon active-icon">👥</span> Создать группу</button>
-            <button class="dropdown-item" onclick="closeDropdown(); showChannels();"><span class="icon active-icon">📢</span> Каналы</button>
+            <button class="dropdown-item" onclick="closeDropdown(); showFavorites();"><span class="icon">⭐</span> Избранное</button>
+            <button class="dropdown-item" onclick="closeDropdown(); showProfile();"><span class="icon">🧑‍💻</span> Профиль</button>
+            <button class="dropdown-item" onclick="closeDropdown(); showSettings();"><span class="icon">⚙️</span> Настройки</button>
+            <button class="dropdown-item" onclick="closeDropdown(); showCreateGroup();"><span class="icon">👥</span> Создать группу</button>
+            <button class="dropdown-item" onclick="closeDropdown(); showChannels();"><span class="icon">📢</span> Каналы</button>
         </div>
     </div>
 
@@ -357,6 +446,25 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
 <script>
+    // ========== СОЗДАНИЕ ШАРИКОВ НА ФОНЕ ==========
+    function createBubbles() {
+        const container = document.getElementById('bubbles-container');
+        if(!container) return;
+        const bubbleCount = 25;
+        for (let i = 0; i < bubbleCount; i++) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            const size = Math.random() * 40 + 20;
+            bubble.style.width = size + 'px';
+            bubble.style.height = size + 'px';
+            bubble.style.left = Math.random() * 100 + '%';
+            bubble.style.animationDuration = Math.random() * 15 + 10 + 's';
+            bubble.style.animationDelay = Math.random() * 15 + 's';
+            container.appendChild(bubble);
+        }
+    }
+    createBubbles();
+
     // ========== FIREBASE ==========
     const firebaseConfig = {
       apiKey: "AIzaSyCeE9jyUU9rJQu-KD92GJSDeGc52vH6hfc",
