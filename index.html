@@ -120,7 +120,13 @@
         .search-close:hover { background: var(--bg-glass-hover); }
 
         /* ЧАТЫ */
-        #mainScreen { display: none; flex-direction: column; height: 100%; width: 100%; background: transparent; padding: 0 16px; padding-top: 50px; position: relative; }
+        #mainScreen { 
+            display: none; flex-direction: column; height: 100%; width: 100%; 
+            background: transparent; 
+            padding: 0 16px; 
+            padding-top: env(safe-area-inset-top, 16px);
+            position: relative; 
+        }
         .main-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 16px; backdrop-filter: blur(10px); }
         .main-title { font-size: 28px; font-weight: 800; color: #fff; }
         .main-actions { display: flex; gap: 12px; }
@@ -140,12 +146,23 @@
         .chat-time { font-size: 11px; color: var(--text-muted); }
 
         /* ЧАТ */
-        #chatScreen { display: none; flex-direction: column; height: 100%; width: 100%; background: transparent; position: relative; }
-        .chat-header { display: flex; align-items: center; padding: 12px 16px; padding-top: 50px; background: var(--bg-glass); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-glass); }
+        #chatScreen { 
+            display: none; flex-direction: column; height: 100%; width: 100%; 
+            background: transparent; position: relative; 
+        }
+        .chat-header { 
+            display: flex; align-items: center; 
+            padding: 12px 16px; 
+            padding-top: env(safe-area-inset-top, 16px);
+            background: var(--bg-glass); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-glass); 
+        }
         .chat-back { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; margin-right: 12px; }
-        .chat-header-info { flex: 1; }
+        .chat-header-info { flex: 1; display: flex; align-items: center; justify-content: space-between; }
+        .chat-header-left { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .chat-header-left:active { opacity: 0.7; }
         .chat-header-title { font-weight: 600; font-size: 18px; }
         .chat-header-status { font-size: 12px; color: var(--text-muted); }
+        .chat-header-more { width: 32px; height: 32px; border-radius: 50%; border: none; background: transparent; color: #fff; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         .messages-area { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; scroll-behavior: smooth; }
         .messages-area::-webkit-scrollbar { width: 4px; }
@@ -318,16 +335,20 @@
         /* ====== МОДАЛКА ПРОФИЛЯ ====== */
         #profileModal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 100; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+            z-index: 2000 !important;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
             justify-content: center; align-items: center;
+            pointer-events: none;
         }
-        #profileModal.show { display: flex; }
+        #profileModal.show { display: flex; pointer-events: auto; }
         .profile-content {
             width: 90%; max-width: 400px; padding: 24px;
             background: var(--bg-glass); backdrop-filter: blur(20px);
             border: 1px solid var(--border-glass); border-radius: 20px;
             box-shadow: var(--shadow-glass); text-align: center;
             max-height: 80vh; overflow-y: auto;
+            pointer-events: auto;
+            cursor: default;
         }
         .profile-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
         .profile-avatar {
@@ -342,6 +363,15 @@
         .profile-info .row { display: flex; justify-content: space-between; padding: 6px 0; }
         .profile-info .row .label { color: var(--text-muted); font-size: 14px; }
         .profile-info .row .value { color: #fff; font-size: 14px; }
+        .profile-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+        .profile-btn {
+            width: 100%; padding: 12px; border-radius: 50px; border: none;
+            background: var(--bg-glass); backdrop-filter: blur(10px);
+            border: 1px solid var(--border-glass); color: #fff; font-size: 16px;
+            cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .profile-btn:hover { background: var(--bg-glass-hover); }
+        .profile-btn.danger { color: #ff6b6b; }
         .profile-close {
             width: 100%; padding: 12px; border-radius: 50px; border: none;
             background: var(--bg-glass); backdrop-filter: blur(10px);
@@ -349,19 +379,22 @@
             cursor: pointer; transition: 0.3s; margin-top: 12px;
         }
         .profile-close:hover { background: var(--bg-glass-hover); }
-
+        
         /* ====== МОДАЛКА НАСТРОЕК ====== */
         #settingsModal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 101; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+            z-index: 2001 !important;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
             justify-content: center; align-items: center;
+            pointer-events: none;
         }
-        #settingsModal.show { display: flex; }
+        #settingsModal.show { display: flex; pointer-events: auto; }
         .settings-content {
             width: 90%; max-width: 400px; padding: 24px;
             background: var(--bg-glass); backdrop-filter: blur(20px);
             border: 1px solid var(--border-glass); border-radius: 20px;
             box-shadow: var(--shadow-glass); max-height: 80vh; overflow-y: auto;
+            pointer-events: auto;
         }
         .settings-title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 16px; }
         .settings-group { margin-bottom: 16px; }
@@ -384,6 +417,56 @@
         }
         .settings-save:hover { transform: scale(1.02); }
 
+        /* ====== МОДАЛКА ПОЗДРАВЛЕНИЯ (КОНФЕТТИ) ====== */
+        #congratsModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 9999 !important; /* Самая высокая */
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+            justify-content: center; align-items: center;
+            pointer-events: none;
+        }
+        #congratsModal.show { display: flex; pointer-events: auto; }
+        .congrats-content {
+            width: 90%; max-width: 400px; padding: 32px 24px;
+            background: var(--bg-glass); backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass); border-radius: 20px;
+            box-shadow: var(--shadow-glass); text-align: center;
+            position: relative;
+        }
+        .congrats-content h2 { font-size: 28px; margin-bottom: 8px; color: #fff; }
+        .congrats-content p { font-size: 16px; color: var(--text-muted); margin-bottom: 16px; }
+        .congrats-number {
+            font-size: 42px; font-weight: 800; color: var(--accent-color);
+            background: rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;
+            border: 1px solid var(--border-glass); margin-bottom: 20px; display: inline-block;
+            letter-spacing: 2px;
+        }
+        .congrats-btn {
+            padding: 12px 40px; border-radius: 50px; border: none;
+            background: var(--accent-color); color: #fff; font-size: 18px; font-weight: 600;
+            cursor: pointer; transition: 0.3s;
+        }
+        .congrats-btn:hover { transform: scale(1.05); }
+
+        /* КОНФЕТТИ (ШАРИКИ) */
+        #confetti-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; overflow: hidden; z-index: 99999;
+        }
+        .confetti-piece {
+            position: absolute; width: 12px; height: 12px; border-radius: 4px;
+            animation: confettiFall linear forwards;
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(-10vh) rotate(0deg) scale(0.5); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg) scale(1.2); opacity: 0; }
+        }
+        
+        @media (min-width: 768px) {
+            .chat-header { padding-top: 20px; }
+            #mainScreen { padding-top: 20px; }
+            #authScreen { padding-top: 40px; }
+        }
         @media (max-width: 500px) {
             .auth-main-buttons { flex-direction: column; }
             .auth-main-btn { width: 100%; }
@@ -450,7 +533,7 @@
                     <button class="auth-submit-btn step-next" data-next="3">Далее →</button>
                 </div>
 
-                <!-- Шаг 3: Дата рождения (возраст вычисляется автоматически) -->
+                <!-- Шаг 3: Дата рождения -->
                 <div class="auth-step" data-step="3">
                     <div class="step-title">Ваша дата рождения</div>
                     <div class="step-subtitle">Мы сами посчитаем ваш возраст</div>
@@ -521,8 +604,14 @@
         <div class="chat-header">
             <button class="chat-back" id="chatBackBtn">‹</button>
             <div class="chat-header-info">
-                <div class="chat-header-title" id="chatTitle">Чат</div>
-                <div class="chat-header-status" id="chatStatus">онлайн</div>
+                <div class="chat-header-left" id="chatHeaderLeft">
+                    <div class="chat-avatar" id="chatHeaderAvatar" style="width:40px;height:40px;font-size:18px;margin-right:0;">👤</div>
+                    <div>
+                        <div class="chat-header-title" id="chatTitle">Чат</div>
+                        <div class="chat-header-status" id="chatStatus">онлайн</div>
+                    </div>
+                </div>
+                <button class="chat-header-more" id="chatHeaderMore">⋮</button>
             </div>
         </div>
         <div class="messages-area" id="messagesArea"></div>
@@ -609,24 +698,26 @@
         <div class="context-item danger" id="ctxDelete">🗑️ Удалить</div>
     </div>
 
-    <!-- МОДАЛКА ПРОФИЛЯ -->
+    <!-- МОДАЛКА ПРОФИЛЯ (СОБЕСЕДНИКА ИЛИ СВОЙ) -->
     <div id="profileModal">
         <div class="profile-content">
-            <div class="profile-title">👤 Мой профиль</div>
-            <div class="profile-avatar" id="profileAvatar">👤</div>
-            <div class="profile-name" id="profileName">Имя Фамилия</div>
-            <div class="profile-number" id="profileNumber">Номер: 00000000</div>
+            <div class="profile-title" id="profileModalTitle">👤 Профиль</div>
+            <div class="profile-avatar" id="profileModalAvatar">👤</div>
+            <div class="profile-name" id="profileModalName">Имя</div>
+            <div class="profile-number" id="profileModalNumber">Номер: 00000000</div>
             <div class="profile-info">
-                <div class="row"><span class="label">Возраст</span><span class="value" id="profileAge">—</span></div>
-                <div class="row"><span class="label">Дата рождения</span><span class="value" id="profileBirthday">—</span></div>
-                <div class="row"><span class="label">Статус</span><span class="value" id="profileStatus">онлайн</span></div>
-                <div class="row"><span class="label">Тема</span><span class="value" id="profileTheme">Фиолет</span></div>
+                <div class="row"><span class="label">Статус</span><span class="value" id="profileModalStatus">онлайн</span></div>
+                <div class="row"><span class="label">Возраст</span><span class="value" id="profileModalAge">—</span></div>
+                <div class="row"><span class="label">Дата рождения</span><span class="value" id="profileModalBirthday">—</span></div>
+            </div>
+            <div class="profile-actions" id="profileActions">
+                <!-- Генерируется динамически -->
             </div>
             <button class="profile-close" id="profileCloseBtn">Закрыть</button>
         </div>
     </div>
 
-    <!-- МОДАЛКА НАСТРОЕК -->
+    <!-- МОДАЛКА НАСТРОЕК (СВОЙ ПРОФИЛЬ) -->
     <div id="settingsModal">
         <div class="settings-content">
             <div class="settings-title">⚙️ Настройки</div>
@@ -665,6 +756,18 @@
         </div>
     </div>
 
+    <!-- МОДАЛКА ПОЗДРАВЛЕНИЯ И КОНФЕТТИ -->
+    <div id="congratsModal">
+        <div id="confetti-container"></div>
+        <div class="congrats-content">
+            <h2>🎉 Поздравляем!</h2>
+            <p>Твой аккаунт создан! Запомни свой номер:</p>
+            <div class="congrats-number" id="congratsNumber">00000000</div>
+            <br>
+            <button class="congrats-btn" id="congratsBtn">👉 Войти в чат</button>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
@@ -689,6 +792,7 @@
         let currentUser = { number: '', uid: '', avatar: null, firstName: '', lastName: '', age: '', birthday: '' };
         let isLoginMode = true;
         let currentChatId = null;
+        let currentChatUserUid = null;
         let chats = [];
         let messages = {};
         let userSettings = { accentColor: '#8a5cf5', bg: 'default' };
@@ -696,6 +800,8 @@
         let selectedTheme = '#8a5cf5';
         let contextTarget = null;
         let pendingImageData = null;
+        let statusListener = null;
+        let typingListener = null;
 
         // ========== DOM ==========
         const startBtn = document.getElementById('startBtn');
@@ -736,6 +842,9 @@
         const chatList = document.getElementById('chatList');
         const chatTitle = document.getElementById('chatTitle');
         const chatStatus = document.getElementById('chatStatus');
+        const chatHeaderLeft = document.getElementById('chatHeaderLeft');
+        const chatHeaderAvatar = document.getElementById('chatHeaderAvatar');
+        const chatHeaderMore = document.getElementById('chatHeaderMore');
         const messagesArea = document.getElementById('messagesArea');
         const chatInput = document.getElementById('chatInput');
         const chatSendBtn = document.getElementById('chatSendBtn');
@@ -780,13 +889,14 @@
         const ctxDelete = document.getElementById('ctxDelete');
 
         const profileModal = document.getElementById('profileModal');
-        const profileAvatar = document.getElementById('profileAvatar');
-        const profileName = document.getElementById('profileName');
-        const profileNumber = document.getElementById('profileNumber');
-        const profileAge = document.getElementById('profileAge');
-        const profileBirthday = document.getElementById('profileBirthday');
-        const profileStatus = document.getElementById('profileStatus');
-        const profileTheme = document.getElementById('profileTheme');
+        const profileModalTitle = document.getElementById('profileModalTitle');
+        const profileModalAvatar = document.getElementById('profileModalAvatar');
+        const profileModalName = document.getElementById('profileModalName');
+        const profileModalNumber = document.getElementById('profileModalNumber');
+        const profileModalStatus = document.getElementById('profileModalStatus');
+        const profileModalAge = document.getElementById('profileModalAge');
+        const profileModalBirthday = document.getElementById('profileModalBirthday');
+        const profileActions = document.getElementById('profileActions');
         const profileCloseBtn = document.getElementById('profileCloseBtn');
 
         const settingsModal = document.getElementById('settingsModal');
@@ -798,6 +908,11 @@
         const settingsAvatarFile = document.getElementById('settingsAvatarFile');
         const settingsAccentColor = document.getElementById('settingsAccentColor');
         const settingsBg = document.getElementById('settingsBg');
+
+        const congratsModal = document.getElementById('congratsModal');
+        const congratsNumber = document.getElementById('congratsNumber');
+        const congratsBtn = document.getElementById('congratsBtn');
+        const confettiContainer = document.getElementById('confetti-container');
 
         // ========== УТИЛИТЫ ==========
         function getImageSize(url) {
@@ -880,7 +995,6 @@
             return number;
         }
 
-        // ========== ВЫЧИСЛЕНИЕ ВОЗРАСТА ==========
         function calculateAge(birthday) {
             if (!birthday) return null;
             const birthDate = new Date(birthday);
@@ -891,6 +1005,29 @@
                 age--;
             }
             return age >= 0 ? age : null;
+        }
+
+        function getContactName(uid) {
+            const contactName = localStorage.getItem('contact_' + currentUser.uid + '_' + uid);
+            return contactName || null;
+        }
+
+        // ========== ФУНКЦИЯ КОНФЕТТИ ==========
+        function fireConfetti() {
+            confettiContainer.innerHTML = '';
+            const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a29bfe', '#fd79a8', '#00b894', '#e17055', '#8a5cf5', '#ff9ff3', '#54a0ff'];
+            for (let i = 0; i < 60; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = Math.random() * 100 + '%';
+                piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.width = (Math.random() * 8 + 6) + 'px';
+                piece.style.height = (Math.random() * 8 + 6) + 'px';
+                piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                piece.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                piece.style.animationDelay = (Math.random() * 2) + 's';
+                confettiContainer.appendChild(piece);
+            }
         }
 
         // ========== СТАРТ ==========
@@ -968,7 +1105,7 @@
             regAvatarPreview.style.background = regColorSelect.value;
         });
 
-        // ========== РЕГИСТРАЦИЯ ==========
+        // ========== РЕГИСТРАЦИЯ (с вызовом конфетти) ==========
         registerSubmitBtn.addEventListener('click', async () => {
             const firstName = regFirstName.value.trim();
             const lastName = regLastName.value.trim();
@@ -982,7 +1119,6 @@
                 return alert('Пароль минимум 4 символа');
             }
 
-            // Вычисляем возраст
             const age = calculateAge(birthday);
             if (!age || age < 1 || age > 120) {
                 return alert('Некорректная дата рождения');
@@ -1023,6 +1159,15 @@
             currentUser = { ...newUser, uid: number };
             localStorage.setItem('messenger_user', JSON.stringify(currentUser));
             
+            // === ПОКАЗЫВАЕМ ПОЗДРАВЛЕНИЕ С КОНФЕТТИ ===
+            congratsNumber.textContent = number;
+            fireConfetti();
+            congratsModal.classList.add('show');
+        });
+
+        congratsBtn.addEventListener('click', () => {
+            congratsModal.classList.remove('show');
+            confettiContainer.innerHTML = '';
             authScreen.style.display = 'none';
             mainScreen.style.display = 'flex';
             startListeningChats();
@@ -1196,16 +1341,93 @@
         }
 
         function openChat(chatId) {
+            if (statusListener) { statusListener.off(); statusListener = null; }
+            if (typingListener) { typingListener.off(); typingListener = null; }
+
             currentChatId = chatId;
+            
+            if (!chats || chats.length === 0) {
+                setTimeout(() => openChat(chatId), 300);
+                return;
+            }
+            
+            const chat = chats.find(c => c.id === chatId);
+            if (!chat) {
+                alert('Чат не найден');
+                return;
+            }
+            
+            const otherUser = chat.participants.find(p => p !== currentUser.uid);
+            if (!otherUser) {
+                alert('Не удалось найти собеседника');
+                return;
+            }
+            
+            currentChatUserUid = otherUser;
+            chatTitle.textContent = 'Загрузка...';
+            chatStatus.textContent = '...';
+            chatHeaderAvatar.textContent = '👤';
+            
+            loadUserInfo(otherUser);
+            loadMessages(chatId);
+            
             mainScreen.style.display = 'none';
             chatScreen.style.display = 'flex';
-            const chat = chats.find(c => c.id === chatId);
-            if (chat) {
-                const otherUser = chat.participants.find(p => p !== currentUser.uid);
-                chatTitle.textContent = otherUser || 'Чат';
-                chatStatus.textContent = 'онлайн';
+        }
+
+        async function loadUserInfo(uid) {
+            if (!uid) return;
+            
+            try {
+                const snapshot = await db.ref('users/' + uid).once('value');
+                const data = snapshot.val();
+                
+                if (data) {
+                    let displayName = `${data.firstName} ${data.lastName || ''}`;
+                    const customName = getContactName(uid);
+                    if (customName) {
+                        displayName = customName;
+                    }
+                    chatTitle.textContent = displayName;
+                    
+                    if (typeof data.avatar === 'string' && data.avatar.startsWith('http')) {
+                        chatHeaderAvatar.innerHTML = `<img src="${data.avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">`;
+                    } else {
+                        chatHeaderAvatar.textContent = data.avatar?.emoji || '👤';
+                        chatHeaderAvatar.style.background = data.avatar?.color || 'rgba(255,255,255,0.1)';
+                    }
+                } else {
+                    chatTitle.textContent = 'Пользователь';
+                    chatHeaderAvatar.textContent = '👤';
+                }
+            } catch (err) {
+                console.error('Ошибка загрузки пользователя:', err);
+                chatTitle.textContent = 'Ошибка';
             }
-            loadMessages(chatId);
+
+            if (statusListener) statusListener.off();
+            statusListener = db.ref('users/' + uid + '/status').on('value', (snap) => {
+                const status = snap.val();
+                if (status === 'online') chatStatus.textContent = 'онлайн';
+                else if (status === 'offline') chatStatus.textContent = 'не в сети';
+                else chatStatus.textContent = status || 'не в сети';
+            });
+
+            if (typingListener) typingListener.off();
+            if (currentChatId) {
+                typingListener = db.ref('typing/' + currentChatId).on('value', (snap) => {
+                    const typingData = snap.val();
+                    if (typingData && typingData[uid] === true) {
+                        chatStatus.textContent = 'печатает...';
+                    } else {
+                        setTimeout(() => {
+                            if (chatStatus.textContent === 'печатает...') {
+                                chatStatus.textContent = 'онлайн';
+                            }
+                        }, 1000);
+                    }
+                });
+            }
         }
 
         function loadMessages(chatId) {
@@ -1303,6 +1525,170 @@
             });
             messagesArea.scrollTop = messagesArea.scrollHeight;
         }
+
+        // ========== ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ==========
+        // Левая кнопка 👤 открывает свой профиль
+        profileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentUser && currentUser.uid) {
+                openUserProfile(currentUser.uid);
+            } else {
+                alert('Сначала войдите в аккаунт!');
+            }
+        });
+
+        chatHeaderLeft.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentChatUserUid) {
+                openUserProfile(currentChatUserUid);
+            }
+        });
+
+        chatHeaderMore.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentChatUserUid) {
+                openUserProfile(currentChatUserUid);
+            }
+        });
+
+        async function openUserProfile(uid) {
+            if (browserViewer.classList.contains('show')) {
+                browserViewer.classList.remove('show');
+                browserImage.src = '';
+                browserIframe.src = '';
+                browserError.style.display = 'none';
+            }
+
+            if (!uid) return;
+            
+            const snapshot = await db.ref('users/' + uid).once('value');
+            const data = snapshot.val();
+            if (!data) {
+                alert('Пользователь не найден');
+                return;
+            }
+
+            const isSelf = (uid === currentUser.uid);
+            profileModalTitle.textContent = isSelf ? '👤 Мой профиль' : '👤 Профиль';
+            
+            const avatar = typeof data.avatar === 'string' && data.avatar.startsWith('http')
+                ? `<img src="${data.avatar}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;">`
+                : data.avatar?.emoji || '👤';
+            profileModalAvatar.innerHTML = avatar;
+            profileModalName.textContent = `${data.firstName} ${data.lastName || ''}`;
+            profileModalNumber.textContent = `Номер: ${uid}`;
+            profileModalAge.textContent = data.age || '—';
+            profileModalBirthday.textContent = data.birthday || '—';
+
+            const contactSnap = await db.ref('contacts/' + currentUser.uid + '/' + uid).once('value');
+            const isContact = contactSnap.exists() && contactSnap.val() === true;
+
+            const blockSnap = await db.ref('blocks/' + currentUser.uid + '/' + uid).once('value');
+            const isBlocked = blockSnap.exists() && blockSnap.val() === true;
+
+            profileActions.innerHTML = '';
+
+            if (!isSelf) {
+                // Если это не свой профиль — показываем кнопки действий
+                const editNameBtn = document.createElement('button');
+                editNameBtn.className = 'profile-btn';
+                editNameBtn.textContent = '✏️ Изменить имя контакта';
+                editNameBtn.onclick = () => {
+                    const currentName = getContactName(uid) || `${data.firstName} ${data.lastName || ''}`;
+                    const newName = prompt('Введите новое имя для этого контакта:', currentName);
+                    if (newName && newName.trim()) {
+                        localStorage.setItem('contact_' + currentUser.uid + '_' + uid, newName.trim());
+                        alert('✅ Имя контакта обновлено!');
+                        if (currentChatUserUid === uid) {
+                            chatTitle.textContent = newName.trim();
+                        }
+                        openUserProfile(uid);
+                    }
+                };
+                profileActions.appendChild(editNameBtn);
+
+                const contactBtn = document.createElement('button');
+                contactBtn.className = 'profile-btn';
+                if (isContact) {
+                    contactBtn.textContent = '✅ В контактах';
+                    contactBtn.onclick = () => removeContact(uid);
+                } else {
+                    contactBtn.textContent = '➕ Добавить в контакты';
+                    contactBtn.onclick = () => addContact(uid);
+                }
+                profileActions.appendChild(contactBtn);
+
+                const blockBtn = document.createElement('button');
+                blockBtn.className = 'profile-btn';
+                if (isBlocked) {
+                    blockBtn.textContent = '🔓 Разблокировать';
+                    blockBtn.onclick = () => unblockUser(uid);
+                } else {
+                    blockBtn.textContent = '🚫 Заблокировать';
+                    blockBtn.className = 'profile-btn danger';
+                    blockBtn.onclick = () => blockUser(uid);
+                }
+                profileActions.appendChild(blockBtn);
+
+                const deleteChatBtn = document.createElement('button');
+                deleteChatBtn.className = 'profile-btn danger';
+                deleteChatBtn.textContent = '🗑️ Удалить чат (у всех)';
+                deleteChatBtn.onclick = () => deleteChat(uid);
+                profileActions.appendChild(deleteChatBtn);
+            } else {
+                // Если свой профиль — показываем кнопку настроек
+                const settingsBtnProfile = document.createElement('button');
+                settingsBtnProfile.className = 'profile-btn';
+                settingsBtnProfile.textContent = '⚙️ Открыть настройки';
+                settingsBtnProfile.onclick = () => {
+                    profileModal.classList.remove('show');
+                    settingsBtn.click();
+                };
+                profileActions.appendChild(settingsBtnProfile);
+            }
+
+            profileModal.classList.add('show');
+        }
+
+        async function addContact(uid) {
+            await db.ref('contacts/' + currentUser.uid + '/' + uid).set(true);
+            alert('✅ Контакт добавлен!');
+            openUserProfile(uid);
+        }
+
+        async function removeContact(uid) {
+            await db.ref('contacts/' + currentUser.uid + '/' + uid).remove();
+            alert('🗑️ Контакт удалён!');
+            openUserProfile(uid);
+        }
+
+        async function blockUser(uid) {
+            if (confirm('Заблокировать этого пользователя?')) {
+                await db.ref('blocks/' + currentUser.uid + '/' + uid).set(true);
+                alert('🚫 Пользователь заблокирован!');
+                openUserProfile(uid);
+            }
+        }
+
+        async function unblockUser(uid) {
+            await db.ref('blocks/' + currentUser.uid + '/' + uid).remove();
+            alert('🔓 Пользователь разблокирован!');
+            openUserProfile(uid);
+        }
+
+        async function deleteChat(uid) {
+            if (!currentChatId) return;
+            if (confirm('Удалить чат и всю историю сообщений для всех участников?')) {
+                await db.ref('messages/' + currentChatId).remove();
+                await db.ref('chats/' + currentChatId).remove();
+                profileModal.classList.remove('show');
+                chatBackBtn.click();
+            }
+        }
+
+        profileCloseBtn.addEventListener('click', () => {
+            profileModal.classList.remove('show');
+        });
 
         // ========== ВСТРОЕННЫЙ БРАУЗЕР ==========
         function openInBrowser(url) {
@@ -1576,32 +1962,18 @@
             }
         });
 
-        // ========== ПРОФИЛЬ ==========
-        function openProfile() {
-            profileModal.classList.add('show');
-            
-            const avatar = typeof currentUser.avatar === 'string' 
-                ? `<img src="${currentUser.avatar}" alt="Аватар">`
-                : currentUser.avatar?.emoji || '👤';
-            profileAvatar.innerHTML = avatar;
-            profileName.textContent = `${currentUser.firstName} ${currentUser.lastName || ''}`;
-            profileNumber.textContent = `Номер: ${currentUser.uid}`;
-            profileAge.textContent = currentUser.age || '—';
-            profileBirthday.textContent = currentUser.birthday || '—';
-            profileStatus.textContent = currentUser.status || 'онлайн';
-            
-            let themeName = 'Фиолет';
-            themeOptions.forEach(el => {
-                if (el.dataset.color === currentUser.theme) {
-                    themeName = el.textContent.trim();
-                }
-            });
-            profileTheme.textContent = themeName;
-        }
-
-        profileBtn.addEventListener('click', openProfile);
-        profileCloseBtn.addEventListener('click', () => {
-            profileModal.classList.remove('show');
+        // ========== НАЗАД ==========
+        chatBackBtn.addEventListener('click', () => {
+            if (currentChatId) {
+                db.ref('messages/' + currentChatId).off();
+                if (statusListener) { statusListener.off(); statusListener = null; }
+                if (typingListener) { typingListener.off(); typingListener = null; }
+            }
+            chatScreen.style.display = 'none';
+            mainScreen.style.display = 'flex';
+            currentChatId = null;
+            currentChatUserUid = null;
+            hideContextMenu();
         });
 
         // ========== НАСТРОЙКИ ==========
@@ -1630,7 +2002,6 @@
             const accentColor = settingsAccentColor.value;
             const bg = settingsBg.value;
 
-            // Если дата рождения изменилась — пересчитываем возраст
             let age = currentUser.age;
             if (birthday && birthday !== currentUser.birthday) {
                 const newAge = calculateAge(birthday);
@@ -1673,23 +2044,14 @@
             alert('✅ Настройки сохранены!');
         });
 
-        // ========== НАЗАД ==========
-        chatBackBtn.addEventListener('click', () => {
-            if (currentChatId) {
-                db.ref('messages/' + currentChatId).off();
-            }
-            chatScreen.style.display = 'none';
-            mainScreen.style.display = 'flex';
-            currentChatId = null;
-            hideContextMenu();
-        });
-
         // ========== ВЫХОД ==========
         logoutBtn.addEventListener('click', () => {
             localStorage.removeItem('messenger_user');
             currentUser = { number: '', uid: '', avatar: null };
             if (currentChatId) {
                 db.ref('messages/' + currentChatId).off();
+                if (statusListener) { statusListener.off(); statusListener = null; }
+                if (typingListener) { typingListener.off(); typingListener = null; }
             }
             mainScreen.style.display = 'none';
             chatScreen.style.display = 'none';
@@ -1715,7 +2077,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с автоматическим расчётом возраста запущен!');
+        console.log('✅ SAE Chat с конфетти и исправленной кнопкой профиля запущен!');
     </script>
 </body>
 </html>
