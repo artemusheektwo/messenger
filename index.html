@@ -1214,12 +1214,67 @@
             }
         }
 
+        // ========== СОЗДАНИЕ ЧАТА ПОДДЕРЖКИ ==========
+        async function createSupportChat() {
+            const supportNumber = '11111111';
+            // Проверяем, существует ли чат с поддержкой для текущего пользователя
+            if (!chats || chats.length === 0) {
+                setTimeout(() => createSupportChat(), 300);
+                return;
+            }
+            
+            const existing = chats.find(c => 
+                c.participants && 
+                c.participants.includes(currentUser.uid) && 
+                c.participants.includes(supportNumber)
+            );
+            
+            if (!existing) {
+                // Создаём чат с поддержкой
+                const chatRef = db.ref('chats').push();
+                await chatRef.set({
+                    participants: [currentUser.uid, supportNumber],
+                    created: Date.now()
+                });
+                console.log('✅ Чат с поддержкой создан!');
+            } else {
+                console.log('✅ Чат с поддержкой уже существует');
+            }
+        }
+
+        // ========== ИНИЦИАЛИЗАЦИЯ ПОДДЕРЖКИ ==========
+        async function initSupport() {
+            if (!currentUser || !currentUser.uid) return;
+            
+            // Проверяем, существует ли аккаунт поддержки
+            const supportSnap = await db.ref('users/11111111').once('value');
+            if (!supportSnap.exists()) {
+                // Если нет — создаём
+                await db.ref('users/11111111').set({
+                    number: '11111111',
+                    password: 'ARCANE_ARCANE_LEGENDA_VCEX_VREMEN',
+                    firstName: 'Sae Chat',
+                    lastName: 'Support',
+                    birthday: '2024-01-01',
+                    age: 1,
+                    about: 'Официальная поддержка SAE Chat. Напиши нам!',
+                    avatar: { emoji: '🤖', color: '#4ecdc4' },
+                    theme: '#4ecdc4',
+                    status: 'online',
+                    lastSeen: Date.now()
+                });
+                console.log('✅ Аккаунт поддержки создан!');
+            }
+            
+            // Создаём чат с поддержкой для текущего пользователя
+            await createSupportChat();
+        }
+
         // ========== НАВИГАЦИЯ ПО ВКЛАДКАМ ==========
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             
-            // Обновляем данные при переключении
             if (tabId === 'chatTab') {
                 renderChatList();
             } else if (tabId === 'feedTab') {
@@ -1372,6 +1427,7 @@
             mainScreen.style.display = 'flex';
             startListeningChats();
             switchTab('chatTab');
+            initSupport(); // Создаём чат с поддержкой
         });
 
         // ========== ВХОД ==========
@@ -1396,6 +1452,7 @@
                 mainScreen.style.display = 'flex';
                 startListeningChats();
                 switchTab('chatTab');
+                initSupport(); // Создаём чат с поддержкой
             } else {
                 alert('Неверный номер или пароль');
             }
@@ -1422,6 +1479,7 @@
                     mainScreen.style.display = 'flex';
                     startListeningChats();
                     switchTab('chatTab');
+                    initSupport(); // Создаём чат с поддержкой при автовходе
                 }
             }
         });
@@ -1562,7 +1620,6 @@
         }
 
         function openChat(chatId) {
-            // Защита от повторных вызовов, пока чат уже открывается
             if (currentChatId === chatId && chatScreen.style.display === 'flex') return;
             
             if (statusListener) { statusListener.off(); statusListener = null; }
@@ -1570,10 +1627,8 @@
 
             currentChatId = chatId;
             
-            // Если чаты ещё не загрузились, ждём и пробуем снова (но не бесконечно)
             if (!chats || chats.length === 0) {
                 setTimeout(() => {
-                    // Проверяем, не поменялся ли ID за время ожидания
                     if (currentChatId === chatId) {
                         openChat(chatId);
                     }
@@ -1584,7 +1639,6 @@
             const chat = chats.find(c => c.id === chatId);
             if (!chat) {
                 console.warn('Чат с ID ' + chatId + ' не найден в списке');
-                // Возможно, данные ещё не подгрузились, пробуем снова через 300мс
                 setTimeout(() => {
                     if (currentChatId === chatId) {
                         openChat(chatId);
@@ -1777,7 +1831,6 @@
                     const liked = post.likes && post.likes[currentUser.uid];
                     const likesCount = post.likes ? Object.keys(post.likes).length : 0;
                     
-                    // Комментарии
                     let commentsHtml = '';
                     if (post.comments) {
                         const commentKeys = Object.keys(post.comments);
@@ -1819,7 +1872,6 @@
                 
                 feedContainer.innerHTML = html;
                 
-                // Обработчики лайков
                 document.querySelectorAll('.feed-like-btn').forEach(btn => {
                     btn.addEventListener('click', async function() {
                         const postId = this.dataset.postid;
@@ -1833,7 +1885,6 @@
                     });
                 });
                 
-                // Обработчики отправки комментариев
                 document.querySelectorAll('.feed-comment-send-btn').forEach(btn => {
                     btn.addEventListener('click', async function() {
                         const postId = this.dataset.postid;
@@ -1852,7 +1903,6 @@
                     });
                 });
                 
-                // Обработчики Enter в поле комментария
                 document.querySelectorAll('.feed-comment-input-field').forEach(input => {
                     input.addEventListener('keydown', function(e) {
                         if (e.key === 'Enter') {
@@ -1865,7 +1915,7 @@
             });
         }
 
-        // ========== СОЗДАНИЕ ПОСТА (ИСПРАВЛЕННОЕ) ==========
+        // ========== СОЗДАНИЕ ПОСТА ==========
         let createPostPendingImage = null;
 
         createPostBtn.addEventListener('click', () => {
@@ -1902,15 +1952,11 @@
             
             let finalImageUrl = null;
             
-            // Если есть фото, сначала загружаем его на ImgBB
             if (createPostPendingImage) {
                 try {
-                    // Превращаем blob-ссылку обратно в файл
                     const response = await fetch(createPostPendingImage);
                     const blob = await response.blob();
                     const file = new File([blob], 'post_photo.jpg', { type: blob.type });
-                    
-                    // Загружаем на ImgBB
                     const compressed = await compressImage(file, 80, 720);
                     finalImageUrl = await uploadToImgbb(compressed.blob);
                 } catch (err) {
@@ -2127,7 +2173,6 @@
             profileModal.classList.remove('show');
             settingsModal.classList.remove('show');
             
-            // Возвращаемся на активную вкладку
             const activeTab = document.querySelector('.tab-content.active');
             if (activeTab) {
                 if (activeTab.id === 'chatTab') renderChatList();
@@ -2515,16 +2560,16 @@
             alert('✅ Настройки сохранены!');
         });
 
-        // ========== ВЫХОД ==========
-        logoutBtn.addEventListener('click', () => {
+        // ========== ВЫХОД И ПЕРЕКЛЮЧЕНИЕ АККАУНТА ==========
+        function switchAccount() {
             localStorage.removeItem('messenger_user');
-            currentUser = { number: '', uid: '', avatar: null };
             if (currentChatId) {
                 db.ref('messages/' + currentChatId).off();
                 if (statusListener) { statusListener.off(); statusListener = null; }
                 if (typingListener) { typingListener.off(); typingListener = null; }
             }
             if (feedListener) { feedListener.off(); feedListener = null; }
+            currentUser = { number: '', uid: '', avatar: null };
             mainScreen.style.display = 'none';
             chatScreen.style.display = 'none';
             authScreen.style.display = 'flex';
@@ -2534,6 +2579,23 @@
             hideContextMenu();
             profileModal.classList.remove('show');
             settingsModal.classList.remove('show');
+        }
+
+        // В настройках добавляем кнопку переключения аккаунта
+        const switchAccountBtn = document.createElement('button');
+        switchAccountBtn.className = 'settings-save';
+        switchAccountBtn.style.marginTop = '8px';
+        switchAccountBtn.style.background = '#ff6b6b';
+        switchAccountBtn.textContent = '🔄 Переключить аккаунт';
+        switchAccountBtn.onclick = () => {
+            if (confirm('Вы уверены, что хотите выйти из этого аккаунта?')) {
+                switchAccount();
+            }
+        };
+        settingsModal.querySelector('.settings-content').appendChild(switchAccountBtn);
+
+        logoutBtn.addEventListener('click', () => {
+            switchAccount();
         });
 
         // ========== УТИЛИТЫ ==========
@@ -2549,7 +2611,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с отдельной лентой, комментариями и фото в постах!');
+        console.log('✅ SAE Chat с поддержкой и мультиаккаунтом!');
     </script>
 </body>
 </html>
