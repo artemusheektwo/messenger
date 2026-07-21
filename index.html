@@ -170,8 +170,15 @@
 
         /* ====== НИЖНЯЯ ПАНЕЛЬ ====== */
        .chat-input-area { 
-           padding-bottom: 25px; /* Жёстко поднимаем на 25 пикселей вверх */
-           padding-bottom: 20px;
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    padding: 8px 16px; 
+    padding-bottom: 20px; /* ТВОЁ ЖЁСТКОЕ ЗНАЧЕНИЕ */
+    background: var(--bg-glass); 
+    backdrop-filter: blur(20px); 
+    border-top: 1px solid var(--border-glass);
+    position: relative; /* Важно, чтобы не улетало вниз */
 }
         .chat-attach { 
             width: 36px; height: 36px; border-radius: 50%; border: none; 
