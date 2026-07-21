@@ -319,6 +319,22 @@
         .messages-area::-webkit-scrollbar { width: 4px; }
         .messages-area::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 10px; }
 
+        /* ====== БЛОК ОТВЕТА (REPLY) НАД ВВОДОМ ====== */
+        .reply-bar {
+            display: none; align-items: center; gap: 10px; padding: 8px 16px;
+            background: var(--bg-glass); backdrop-filter: blur(10px);
+            border-top: 1px solid var(--border-glass); border-bottom: 1px solid var(--border-glass);
+            position: fixed; bottom: 90px; left: 0; width: 100%; z-index: 49;
+            box-sizing: border-box;
+        }
+        .reply-bar.show { display: flex; }
+        .reply-bar .reply-text { flex: 1; font-size: 14px; color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .reply-bar .reply-author { font-weight: 600; color: var(--accent-color); }
+        .reply-bar .reply-close {
+            background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 0 8px;
+        }
+        .reply-bar .reply-close:hover { color: #ff6b6b; }
+
         /* ====== НИЖНЯЯ ПАНЕЛЬ ====== */
         .chat-input-area { 
             display: flex; 
@@ -425,6 +441,12 @@
         .message.mine { align-self: flex-end; background: var(--accent-color); color: #fff; border-bottom-right-radius: 4px; }
         .message.other { align-self: flex-start; background: var(--bg-glass); backdrop-filter: blur(10px); border: 1px solid var(--border-glass); color: #fff; border-bottom-left-radius: 4px; }
         .message .msg-time { font-size: 10px; opacity: 0.6; margin-top: 4px; text-align: right; }
+        .message .reply-to {
+            font-size: 12px; background: rgba(255,255,255,0.05); border-radius: 8px;
+            padding: 4px 8px; margin-bottom: 4px; border-left: 3px solid var(--accent-color);
+            color: #bbb; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .message .reply-to .reply-author { color: var(--accent-color); font-weight: 600; }
         
         /* Ссылки */
         .message a { 
@@ -806,6 +828,14 @@
                 <button class="chat-header-more" id="chatHeaderMore">⋮</button>
             </div>
         </div>
+        
+        <!-- Блок ответа (Reply) -->
+        <div class="reply-bar" id="replyBar">
+            <span class="reply-author" id="replyAuthor"></span>
+            <span class="reply-text" id="replyText"></span>
+            <button class="reply-close" id="replyClose">✕</button>
+        </div>
+
         <div class="messages-area" id="messagesArea"></div>
         <div class="chat-input-area">
             <button class="chat-attach" id="chatAttachBtn">📎</button>
@@ -900,6 +930,7 @@
 
     <!-- КОНТЕКСТНОЕ МЕНЮ -->
     <div id="contextMenu">
+        <div class="context-item" id="ctxReply">↩️ Ответить</div>
         <div class="context-item" id="ctxForward">↪️ Переслать</div>
         <div class="context-item" id="ctxCopyText">📋 Скопировать текст</div>
         <div class="context-item" id="ctxCopyLink">🔗 Скопировать ссылку</div>
@@ -1019,6 +1050,7 @@
         let typingListener = null;
         let feedListener = null;
         let accounts = [];
+        let replyTarget = null; // { msgId, text, author }
 
         // ========== DOM ==========
         const startBtn = document.getElementById('startBtn');
@@ -1079,6 +1111,10 @@
         const chatSendBtn = document.getElementById('chatSendBtn');
         const chatAttachBtn = document.getElementById('chatAttachBtn');
         const chatBackBtn = document.getElementById('chatBackBtn');
+        const replyBar = document.getElementById('replyBar');
+        const replyAuthor = document.getElementById('replyAuthor');
+        const replyText = document.getElementById('replyText');
+        const replyClose = document.getElementById('replyClose');
         const searchBtn = document.getElementById('searchBtn');
         const profileBtn = document.getElementById('profileBtn');
         const settingsBtn = document.getElementById('settingsBtn');
@@ -1110,6 +1146,7 @@
         const browserCopyLink = document.getElementById('browserCopyLink');
 
         const contextMenu = document.getElementById('contextMenu');
+        const ctxReply = document.getElementById('ctxReply');
         const ctxForward = document.getElementById('ctxForward');
         const ctxCopyText = document.getElementById('ctxCopyText');
         const ctxCopyLink = document.getElementById('ctxCopyLink');
@@ -1746,7 +1783,6 @@
 
             currentChatId = chatId;
             
-            // Ждём загрузки чатов
             if (!chats || chats.length === 0) {
                 setTimeout(() => {
                     if (currentChatId === chatId) openChat(chatId);
@@ -1865,6 +1901,14 @@
                             ${msg.reaction || '❤️'}
                         </div>
                     </div>`;
+                }
+
+                // Блок ответа (reply)
+                if (msg.replyTo) {
+                    const replyPreview = document.createElement('div');
+                    replyPreview.className = 'reply-to';
+                    replyPreview.innerHTML = `<span class="reply-author">${msg.replyAuthor || 'Кто-то'}:</span> ${msg.replyText || '...'}`;
+                    div.insertBefore(replyPreview, div.firstChild);
                 }
                 
                 div.innerHTML = `
@@ -2251,6 +2295,31 @@
             profileModal.classList.remove('show');
         });
 
+        // ========== ОБРАБОТЧИК ОТВЕТА (REPLY) ==========
+        ctxReply.addEventListener('click', () => {
+            if (!contextTarget) return;
+            const msgData = messages[contextTarget.msgId];
+            if (!msgData) return;
+            
+            replyTarget = {
+                msgId: contextTarget.msgId,
+                text: msgData.text || '📷 Фото',
+                author: msgData.sender === currentUser.uid ? 'Вы' : (currentChatUserUid ? getContactName(currentChatUserUid) || 'Собеседник' : 'Собеседник')
+            };
+            
+            replyAuthor.textContent = replyTarget.author + ':';
+            replyText.textContent = replyTarget.text;
+            replyBar.classList.add('show');
+            chatInput.focus();
+            
+            hideContextMenu();
+        });
+
+        replyClose.addEventListener('click', () => {
+            replyBar.classList.remove('show');
+            replyTarget = null;
+        });
+
         // ========== НАЗАД ==========
         function goBack() {
             try {
@@ -2274,6 +2343,8 @@
             hideContextMenu();
             profileModal.classList.remove('show');
             settingsModal.classList.remove('show');
+            replyBar.classList.remove('show');
+            replyTarget = null;
             
             const activeTab = document.querySelector('.tab-content.active');
             if (activeTab) {
@@ -2348,34 +2419,6 @@
             }
         });
 
-        // ========== ГЛОБАЛЬНЫЕ РЕАКЦИИ В ЧАТЕ ==========
-        document.addEventListener('click', async function(e) {
-            const reaction = e.target.closest('.photo-reaction');
-            if (reaction) {
-                e.stopPropagation();
-                const msgId = reaction.dataset.msgid;
-                if (!msgId || !currentChatId) return;
-                
-                const msgRef = db.ref('messages/' + currentChatId + '/' + msgId);
-                try {
-                    const snap = await msgRef.once('value');
-                    const data = snap.val();
-                    const newReaction = data && data.reaction === '❤️' ? '' : '❤️';
-                    await msgRef.update({ reaction: newReaction });
-                    
-                    if (newReaction) {
-                        reaction.textContent = '❤️';
-                        reaction.classList.add('liked');
-                    } else {
-                        reaction.textContent = '❤️';
-                        reaction.classList.remove('liked');
-                    }
-                } catch (err) {
-                    console.error('Ошибка реакции:', err);
-                }
-            }
-        });
-
         // ========== КОНТЕКСТНОЕ МЕНЮ ==========
         function showContextMenu(x, y, element) {
             contextTarget = {
@@ -2386,6 +2429,7 @@
                 element: element
             };
             
+            ctxReply.style.display = 'flex';
             ctxCopyText.style.display = contextTarget.type === 'text' ? 'flex' : 'none';
             ctxCopyLink.style.display = contextTarget.type === 'image' ? 'flex' : 'none';
             ctxSaveImage.style.display = contextTarget.type === 'image' ? 'flex' : 'none';
@@ -2501,6 +2545,12 @@
                 time: Date.now()
             };
             
+            if (replyTarget) {
+                msgData.replyTo = replyTarget.msgId;
+                msgData.replyAuthor = replyTarget.author;
+                msgData.replyText = replyTarget.text;
+            }
+            
             if (pendingImageData) {
                 msgData.image = pendingImageData.url;
                 msgData.width = pendingImageData.width;
@@ -2518,6 +2568,8 @@
                     lastTime: Date.now()
                 });
                 chatInput.value = '';
+                replyBar.classList.remove('show');
+                replyTarget = null;
             });
         }
 
@@ -2700,7 +2752,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с полностью круглыми аватарками и эмодзи!');
+        console.log('✅ SAE Chat с Reply и круглыми аватарками!');
     </script>
 </body>
 </html>
