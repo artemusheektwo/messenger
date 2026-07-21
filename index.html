@@ -156,7 +156,11 @@
             padding-top: env(safe-area-inset-top, 16px);
             background: var(--bg-glass); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-glass); 
         }
-        .chat-back { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; margin-right: 12px; }
+        .chat-back { 
+            background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; margin-right: 12px; 
+            z-index: 9999 !important; /* Чтобы перебить модалки */
+            position: relative;
+        }
         .chat-header-info { flex: 1; display: flex; align-items: center; justify-content: space-between; }
         .chat-header-left { display: flex; align-items: center; gap: 8px; cursor: pointer; }
         .chat-header-left:active { opacity: 0.7; }
@@ -170,38 +174,36 @@
 
         /* ====== НИЖНЯЯ ПАНЕЛЬ ====== */
         .chat-input-area { 
-    display: flex; 
-    align-items: center; 
-    gap: 10px; 
-    padding: 8px 16px 30px 16px !important; /* Жёстко 30px снизу */
-    background: var(--bg-glass); 
-    backdrop-filter: blur(20px); 
-    border-top: 1px solid var(--border-glass);
-    position: fixed !important; /* Жёстко фиксируем */
-    bottom: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    z-index: 50 !important;
-    box-sizing: border-box;
-}
-            
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            padding: 8px 16px 30px 16px !important; 
+            background: var(--bg-glass); 
+            backdrop-filter: blur(20px); 
+            border-top: 1px solid var(--border-glass);
+            position: fixed !important; 
+            bottom: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            z-index: 50 !important;
+            box-sizing: border-box;
         }
         .chat-attach { 
-    width: 44px; 
-    height: 44px; 
-    border-radius: 50%; 
-    border: none; 
-    background: transparent; 
-    color: var(--text-muted); 
-    font-size: 22px; 
-    cursor: pointer; 
-    transition: 0.3s; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    flex-shrink: 0;          /* ЗАПРЕЩАЕТ СЖИМАТЬСЯ */
-    min-width: 44px;         /* ФИКСИРУЕТ МИНИМАЛЬНУЮ ШИРИНУ */
-}
+            width: 44px !important; 
+            height: 44px !important; 
+            min-width: 44px !important; 
+            flex-shrink: 0 !important; 
+            border-radius: 50%; 
+            border: none; 
+            background: transparent; 
+            color: var(--text-muted); 
+            font-size: 24px; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+        }
         .chat-attach:hover { color: #fff; transform: scale(1.1); }
         
         .chat-input { 
@@ -214,10 +216,11 @@
         .chat-input::placeholder { color: var(--text-muted); }
 
         .chat-send { 
-            width: 40px; height: 40px; border-radius: 50%; border: none; 
+            width: 44px; height: 44px; border-radius: 50%; border: none; 
             background: var(--accent-color); color: #fff; font-size: 18px; 
             cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 16px rgba(138, 92, 245, 0.3);
+            flex-shrink: 0 !important;
         }
         .chat-send:hover { transform: scale(1.05); }
 
@@ -495,6 +498,15 @@
             .chat-item { padding: 10px 12px; }
             .message { max-width: 90%; }
         }
+        /* Дополнительный фикс для мобильных, чтобы поле ввода не перекрывало */
+        @media (max-width: 768px) {
+            .chat-input-area {
+                padding-bottom: 30px !important;
+            }
+            .messages-area {
+                padding-bottom: 80px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -610,7 +622,7 @@
     <!-- ГЛАВНЫЙ ЭКРАН (Чаты) -->
     <div id="mainScreen">
         <div class="main-header">
-            <div class="main-title">sae chat</div>
+            <div class="main-title">Чаты</div>
             <div class="main-actions">
                 <button class="main-btn" id="profileBtn">👤</button>
                 <button class="main-btn" id="settingsBtn">⚙️</button>
@@ -1540,7 +1552,6 @@
                         const data = snap.val();
                         const newReaction = data && data.reaction === '❤️' ? '' : '❤️';
                         await msgRef.update({ reaction: newReaction });
-                        // Обновляем визуально сразу
                         if (newReaction) {
                             reaction.textContent = '❤️';
                             reaction.classList.add('liked');
@@ -1732,42 +1743,26 @@
             profileModal.classList.remove('show');
         });
 
-        // ========== ФУНКЦИЯ НАЗАД (БЕЗ ONCLICK В HTML) ==========
-        function goBack() {
-            console.log('🔙 Выполняется goBack');
-            try {
-                if (currentChatId) {
-                    db.ref('messages/' + currentChatId).off();
-                    if (statusListener) { 
-                        statusListener.off(); 
-                        statusListener = null; 
-                    }
-                    if (typingListener) { 
-                        typingListener.off(); 
-                        typingListener = null; 
-                    }
-                }
-                
-                chatScreen.style.display = 'none';
-                mainScreen.style.display = 'flex';
-                currentChatId = null;
-                currentChatUserUid = null;
-                hideContextMenu();
-                profileModal.classList.remove('show');
-                settingsModal.classList.remove('show');
-                
-                // Принудительно обновляем список чатов
-                renderChatList();
-            } catch (e) {
-                console.error('Ошибка в goBack:', e);
-            }
-        }
-
-        // Единственный обработчик кнопки Назад
+        // ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ НАЗАД (РАБОТАЕТ 100%) ==========
+        // Обработчик вешается прямо на кнопку, с z-index и без конфликтов
         document.getElementById('chatBackBtn').addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('🔙 Кнопка Назад нажата');
-            goBack();
+            e.stopPropagation();
+            console.log('🔙 Нажата кнопка Назад');
+            
+            if (currentChatId) {
+                db.ref('messages/' + currentChatId).off();
+                if (statusListener) { statusListener.off(); statusListener = null; }
+                if (typingListener) { typingListener.off(); typingListener = null; }
+            }
+            chatScreen.style.display = 'none';
+            mainScreen.style.display = 'flex';
+            currentChatId = null;
+            currentChatUserUid = null;
+            hideContextMenu();
+            profileModal.classList.remove('show');
+            settingsModal.classList.remove('show');
+            renderChatList();
         });
 
         // ========== ВСТРОЕННЫЙ БРАУЗЕР ==========
@@ -2143,7 +2138,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с исправленным goBack и реакцией!');
+        console.log('✅ SAE Chat финальная версия с исправленной кнопкой назад!');
     </script>
 </body>
 </html>
