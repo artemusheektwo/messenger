@@ -1778,8 +1778,19 @@
             
             if (currentChatId) {
                 db.ref('messages/' + currentChatId).off();
-                if (statusListener) { statusListener.off(); statusListener = null; }
-                if (typingListener) { typingListener.off(); typingListener = null; }
+                try {
+    if (statusListener && typeof statusListener.off === 'function') {
+        statusListener.off();
+    }
+} catch (e) {}
+statusListener = null;
+
+try {
+    if (typingListener && typeof typingListener.off === 'function') {
+        typingListener.off();
+    }
+} catch (e) {}
+typingListener = null;
             }
             chatScreen.style.display = 'none';
             mainScreen.style.display = 'flex';
