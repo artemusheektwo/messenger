@@ -9,7 +9,7 @@
         body { background: #0f0f0f; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         
         :root {
-            --accent-color: #8a5cf5;
+            --accent-color: #8a5cf5; /* Фиолетовый по умолчанию! */
             --bg-glass: rgba(255, 255, 255, 0.08);
             --bg-glass-hover: rgba(255, 255, 255, 0.15);
             --border-glass: rgba(255, 255, 255, 0.1);
@@ -442,7 +442,7 @@
         .message.other { align-self: flex-start; background: var(--bg-glass); backdrop-filter: blur(10px); border: 1px solid var(--border-glass); color: #fff; border-bottom-left-radius: 4px; }
         .message .msg-time { font-size: 10px; opacity: 0.6; margin-top: 4px; text-align: right; }
         
-        /* Блок ответа (Reply) в стиле Telegram */
+        /* Блок ответа (Reply) в стиле Telegram (исправлен) */
         .message .reply-block {
             display: block; padding: 4px 8px 4px 10px; margin-bottom: 6px;
             border-left: 3px solid var(--accent-color);
@@ -1793,21 +1793,22 @@
 
             currentChatId = chatId;
             
-            // ЖДЁМ, ПОКА ЗАГРУЗЯТСЯ ЧАТЫ (ЖЁСТКАЯ СИНХРОНИЗАЦИЯ)
-            let attempts = 0;
-            const waitForChats = setInterval(() => {
-                attempts++;
-                if (chats && chats.length > 0) {
-                    clearInterval(waitForChats);
-                    tryOpenChat(chatId);
-                } else if (attempts > 10) { // 3 секунды ожидания
-                    clearInterval(waitForChats);
-                    alert('Не удалось загрузить чаты. Попробуйте позже.');
-                }
-            }, 300);
-        }
-
-        function tryOpenChat(chatId) {
+            // ЖЁСТКАЯ СИНХРОНИЗАЦИЯ: ЖДЁМ ЗАГРУЗКИ ЧАТОВ
+            if (!chats || chats.length === 0) {
+                let waitCount = 0;
+                const interval = setInterval(() => {
+                    waitCount++;
+                    if (chats && chats.length > 0) {
+                        clearInterval(interval);
+                        openChat(chatId);
+                    } else if (waitCount > 10) { // 3 секунды
+                        clearInterval(interval);
+                        alert('Не удалось загрузить чаты. Обновите страницу.');
+                    }
+                }, 300);
+                return;
+            }
+            
             const chat = chats.find(c => c.id === chatId);
             if (!chat) {
                 alert('Чат не найден');
@@ -1919,7 +1920,7 @@
                     </div>`;
                 }
 
-                // Блок ответа (Reply) в стиле Telegram
+                // Блок ответа (Reply) в стиле Telegram (добавляем перед контентом)
                 if (msg.replyTo) {
                     const replyHtml = `
                         <div class="reply-block">
@@ -1927,10 +1928,12 @@
                             <span class="reply-text">${msg.replyText || '...'}</span>
                         </div>
                     `;
+                    // Вставляем перед контентом, не перезаписывая его
                     div.insertAdjacentHTML('afterbegin', replyHtml);
                 }
                 
-                div.innerHTML = `
+                // Добавляем контент и время
+                div.innerHTML += `
                     <div>${content}</div>
                     <div class="msg-time">${msg.time ? timeAgo(msg.time) : ''}</div>
                 `;
@@ -2771,7 +2774,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с Reply как в Telegram и починенным багом чата!');
+        console.log('✅ SAE Chat с починенным Reply, цветом и багом чата!');
     </script>
 </body>
 </html>
