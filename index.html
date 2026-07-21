@@ -1562,39 +1562,54 @@
         }
 
         function openChat(chatId) {
-            if (statusListener) { statusListener.off(); statusListener = null; }
-            if (typingListener) { typingListener.off(); typingListener = null; }
+    // Защита от повторных вызовов, пока чат уже открывается
+    if (currentChatId === chatId && chatScreen.style.display === 'flex') return;
+    
+    if (statusListener) { statusListener.off(); statusListener = null; }
+    if (typingListener) { typingListener.off(); typingListener = null; }
 
-            currentChatId = chatId;
-            
-            if (!chats || chats.length === 0) {
-                setTimeout(() => openChat(chatId), 300);
-                return;
+    currentChatId = chatId;
+    
+    // Если чаты ещё не загрузились, ждём и пробуем снова (но не бесконечно)
+    if (!chats || chats.length === 0) {
+        setTimeout(() => {
+            // Проверяем, не поменялся ли ID за время ожидания
+            if (currentChatId === chatId) {
+                openChat(chatId);
             }
-            
-            const chat = chats.find(c => c.id === chatId);
-            if (!chat) {
-                alert('Чат не найден');
-                return;
+        }, 300);
+        return;
+    }
+    
+    const chat = chats.find(c => c.id === chatId);
+    if (!chat) {
+        console.warn('Чат с ID ' + chatId + ' не найден в списке');
+        // Возможно, данные ещё не подгрузились, пробуем снова через 300мс
+        setTimeout(() => {
+            if (currentChatId === chatId) {
+                openChat(chatId);
             }
-            
-            const otherUser = chat.participants.find(p => p !== currentUser.uid);
-            if (!otherUser) {
-                alert('Не удалось найти собеседника');
-                return;
-            }
-            
-            currentChatUserUid = otherUser;
-            chatTitle.textContent = 'Загрузка...';
-            chatStatus.textContent = '...';
-            chatHeaderAvatar.textContent = '👤';
-            
-            loadUserInfo(otherUser);
-            loadMessages(chatId);
-            
-            mainScreen.style.display = 'none';
-            chatScreen.style.display = 'flex';
-        }
+        }, 300);
+        return;
+    }
+    
+    const otherUser = chat.participants.find(p => p !== currentUser.uid);
+    if (!otherUser) {
+        alert('Не удалось найти собеседника');
+        return;
+    }
+    
+    currentChatUserUid = otherUser;
+    chatTitle.textContent = 'Загрузка...';
+    chatStatus.textContent = '...';
+    chatHeaderAvatar.textContent = '👤';
+    
+    loadUserInfo(otherUser);
+    loadMessages(chatId);
+    
+    mainScreen.style.display = 'none';
+    chatScreen.style.display = 'flex';
+}
 
         async function loadUserInfo(uid) {
             if (!uid) return;
