@@ -2177,10 +2177,11 @@ typingListener = null;
 
         // ====== АБСОЛЮТНЫЙ ПЕРЕХВАТ КЛИКА ПО КНОПКЕ НАЗАД ======
 // Вешаем обработчик прямо на window (самый верхний уровень)
+// ====== АБСОЛЮТНЫЙ ПЕРЕХВАТ КЛИКА ПО КНОПКЕ НАЗАД ======
 window.addEventListener('click', function(e) {
     const backBtn = e.target.closest('#chatBackBtn');
     if (backBtn) {
-        e.stopImmediatePropagation(); // Полная блокировка всплытия
+        e.stopImmediatePropagation();
         e.preventDefault();
         console.log('🔙 Абсолютный перехват сработал!');
 
@@ -2188,8 +2189,21 @@ window.addEventListener('click', function(e) {
             try {
                 db.ref('messages/' + currentChatId).off();
             } catch (err) {}
-            if (statusListener) { statusListener.off(); statusListener = null; }
-            if (typingListener) { typingListener.off(); typingListener = null; }
+            
+            // Исправленный блок отключения слушателей
+            try {
+                if (statusListener && typeof statusListener.off === 'function') {
+                    statusListener.off();
+                }
+            } catch (e) {}
+            statusListener = null;
+
+            try {
+                if (typingListener && typeof typingListener.off === 'function') {
+                    typingListener.off();
+                }
+            } catch (e) {}
+            typingListener = null;
         }
 
         chatScreen.style.display = 'none';
@@ -2200,15 +2214,13 @@ window.addEventListener('click', function(e) {
         profileModal.classList.remove('show');
         settingsModal.classList.remove('show');
         
-        // Обновляем список чатов
         if (typeof renderChatList === 'function') {
             renderChatList();
         }
         
         console.log('✅ Возврат в список чатов выполнен!');
     }
-}, true); // true = фаза перехвата (самая ранняя)
-
+}, true);
         console.log('✅ SAE Chat финальная версия с исправленной кнопкой назад!');
     </script>
 </body>
