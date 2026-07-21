@@ -170,10 +170,13 @@
 
         /* ====== НИЖНЯЯ ПАНЕЛЬ ====== */
         .chat-input-area { 
-            display: flex; align-items: center; gap: 10px; 
-            padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
-            background: var(--bg-glass); backdrop-filter: blur(20px); 
-            border-top: 1px solid var(--border-glass);
+    display: flex; align-items: center; gap: 10px; 
+    padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+    background: var(--bg-glass); backdrop-filter: blur(20px); 
+    border-top: 1px solid var(--border-glass);
+    position: relative; /* <--- ДОБАВЬ ЭТУ СТРОКУ */
+    z-index: 10; /* И эту на всякий случай */
+}
             
         }
         .chat-attach { 
