@@ -138,6 +138,34 @@
         }
         .main-btn:hover { background: var(--bg-glass-hover); transform: scale(1.05); }
 
+        /* ====== ПЕРЕКЛЮЧАТЕЛЬ АККАУНТОВ ====== */
+        #accountSwitcher {
+            display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 14px 0;
+            white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none;
+        }
+        #accountSwitcher::-webkit-scrollbar { display: none; }
+        .account-item {
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            cursor: pointer; padding: 4px 8px; border-radius: 12px; transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .account-item:hover { background: var(--bg-glass-hover); }
+        .account-item.active .account-avatar { border: 2px solid var(--accent-color); }
+        .account-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;
+            font-size: 22px; border: 2px solid transparent; transition: 0.2s;
+        }
+        .account-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .account-name { font-size: 11px; color: var(--text-muted); max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
+        .account-add {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: rgba(255,255,255,0.05); border: 2px dashed var(--border-glass);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px; color: var(--text-muted); cursor: pointer; transition: 0.2s;
+        }
+        .account-add:hover { background: var(--bg-glass-hover); color: #fff; }
+
         /* ====== КОНТЕЙНЕРЫ ====== */
         .tab-content { display: none; flex: 1; overflow-y: auto; padding-bottom: 80px; }
         .tab-content.active { display: block; }
@@ -734,6 +762,9 @@
             </div>
         </div>
 
+        <!-- Переключатель аккаунтов -->
+        <div id="accountSwitcher"></div>
+
         <!-- Вкладка Чаты -->
         <div class="tab-content active" id="chatTab">
             <div class="chat-list" id="chatList"></div>
@@ -973,6 +1004,7 @@
         let statusListener = null;
         let typingListener = null;
         let feedListener = null;
+        let accounts = []; // Список сохранённых аккаунтов
 
         // ========== DOM ==========
         const startBtn = document.getElementById('startBtn');
@@ -1021,6 +1053,7 @@
         const createPostCancel = document.getElementById('createPostCancel');
         const createPostPublish = document.getElementById('createPostPublish');
 
+        const accountSwitcher = document.getElementById('accountSwitcher');
         const chatList = document.getElementById('chatList');
         const chatTitle = document.getElementById('chatTitle');
         const chatStatus = document.getElementById('chatStatus');
@@ -1214,42 +1247,108 @@
             }
         }
 
-        // ========== СОЗДАНИЕ ЧАТА ПОДДЕРЖКИ ==========
-        async function createSupportChat() {
-            const supportNumber = '11111111';
-            // Проверяем, существует ли чат с поддержкой для текущего пользователя
-            if (!chats || chats.length === 0) {
-                setTimeout(() => createSupportChat(), 300);
-                return;
-            }
-            
-            const existing = chats.find(c => 
-                c.participants && 
-                c.participants.includes(currentUser.uid) && 
-                c.participants.includes(supportNumber)
-            );
-            
-            if (!existing) {
-                // Создаём чат с поддержкой
-                const chatRef = db.ref('chats').push();
-                await chatRef.set({
-                    participants: [currentUser.uid, supportNumber],
-                    created: Date.now()
+        // ========== УПРАВЛЕНИЕ АККАУНТАМИ ==========
+        function saveAccountToList(user) {
+            if (!user || !user.uid) return;
+            // Сохраняем в localStorage список аккаунтов
+            let saved = JSON.parse(localStorage.getItem('sae_accounts') || '[]');
+            // Если такого нет — добавляем
+            if (!saved.find(a => a.uid === user.uid)) {
+                saved.push({
+                    uid: user.uid,
+                    number: user.number,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    avatar: user.avatar,
+                    theme: user.theme
                 });
-                console.log('✅ Чат с поддержкой создан!');
-            } else {
-                console.log('✅ Чат с поддержкой уже существует');
+                localStorage.setItem('sae_accounts', JSON.stringify(saved));
             }
+            accounts = saved;
+            renderAccountSwitcher();
+        }
+
+        function loadAccounts() {
+            const saved = JSON.parse(localStorage.getItem('sae_accounts') || '[]');
+            accounts = saved;
+            renderAccountSwitcher();
+        }
+
+        function switchToAccount(uid) {
+            // Очищаем текущие слушатели
+            if (currentChatId) {
+                db.ref('messages/' + currentChatId).off();
+                if (statusListener) { statusListener.off(); statusListener = null; }
+                if (typingListener) { typingListener.off(); typingListener = null; }
+            }
+            if (feedListener) { feedListener.off(); feedListener = null; }
+            
+            // Загружаем данные пользователя
+            db.ref('users/' + uid).once('value', (snap) => {
+                const data = snap.val();
+                if (data) {
+                    currentUser = { ...data, uid: uid };
+                    localStorage.setItem('messenger_user', JSON.stringify(currentUser));
+                    if (data.theme) {
+                        document.documentElement.style.setProperty('--accent-color', data.theme);
+                    }
+                    mainScreen.style.display = 'flex';
+                    chatScreen.style.display = 'none';
+                    currentChatId = null;
+                    currentChatUserUid = null;
+                    hideContextMenu();
+                    profileModal.classList.remove('show');
+                    settingsModal.classList.remove('show');
+                    startListeningChats();
+                    renderAccountSwitcher();
+                    switchTab('chatTab');
+                    initSupport();
+                }
+            });
+        }
+
+        function renderAccountSwitcher() {
+            accountSwitcher.innerHTML = '';
+            accounts.forEach(acc => {
+                const div = document.createElement('div');
+                div.className = 'account-item' + (acc.uid === currentUser.uid ? ' active' : '');
+                
+                let avatarHtml = '👤';
+                if (typeof acc.avatar === 'string' && acc.avatar.startsWith('http')) {
+                    avatarHtml = `<img src="${acc.avatar}" alt="Аватар">`;
+                } else if (acc.avatar?.emoji) {
+                    avatarHtml = acc.avatar.emoji;
+                }
+                
+                div.innerHTML = `
+                    <div class="account-avatar">${avatarHtml}</div>
+                    <div class="account-name">${acc.firstName || acc.number}</div>
+                `;
+                div.onclick = () => {
+                    if (acc.uid !== currentUser.uid) {
+                        switchToAccount(acc.uid);
+                    }
+                };
+                accountSwitcher.appendChild(div);
+            });
+            
+            // Кнопка добавления аккаунта
+            const addDiv = document.createElement('div');
+            addDiv.className = 'account-add';
+            addDiv.textContent = '+';
+            addDiv.onclick = () => {
+                // Выходим из текущего и показываем экран входа
+                switchAccount();
+            };
+            accountSwitcher.appendChild(addDiv);
         }
 
         // ========== ИНИЦИАЛИЗАЦИЯ ПОДДЕРЖКИ ==========
         async function initSupport() {
             if (!currentUser || !currentUser.uid) return;
             
-            // Проверяем, существует ли аккаунт поддержки
             const supportSnap = await db.ref('users/11111111').once('value');
             if (!supportSnap.exists()) {
-                // Если нет — создаём
                 await db.ref('users/11111111').set({
                     number: '11111111',
                     password: 'ARCANE_ARCANE_LEGENDA_VCEX_VREMEN',
@@ -1263,18 +1362,31 @@
                     status: 'online',
                     lastSeen: Date.now()
                 });
-                console.log('✅ Аккаунт поддержки создан!');
             }
             
-            // Создаём чат с поддержкой для текущего пользователя
-            await createSupportChat();
+            // Создаём чат с поддержкой
+            if (!chats || chats.length === 0) {
+                setTimeout(() => initSupport(), 300);
+                return;
+            }
+            const existing = chats.find(c => 
+                c.participants && 
+                c.participants.includes(currentUser.uid) && 
+                c.participants.includes('11111111')
+            );
+            if (!existing) {
+                const chatRef = db.ref('chats').push();
+                await chatRef.set({
+                    participants: [currentUser.uid, '11111111'],
+                    created: Date.now()
+                });
+            }
         }
 
         // ========== НАВИГАЦИЯ ПО ВКЛАДКАМ ==========
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            
             if (tabId === 'chatTab') {
                 renderChatList();
             } else if (tabId === 'feedTab') {
@@ -1414,6 +1526,8 @@
             await db.ref('users/' + number).set(newUser);
             currentUser = { ...newUser, uid: number };
             localStorage.setItem('messenger_user', JSON.stringify(currentUser));
+            saveAccountToList(currentUser);
+            initSupport();
             
             congratsNumber.textContent = number;
             fireConfetti();
@@ -1427,7 +1541,7 @@
             mainScreen.style.display = 'flex';
             startListeningChats();
             switchTab('chatTab');
-            initSupport(); // Создаём чат с поддержкой
+            renderAccountSwitcher();
         });
 
         // ========== ВХОД ==========
@@ -1445,6 +1559,7 @@
             if (data && data.password === password) {
                 currentUser = { ...data, uid: number };
                 localStorage.setItem('messenger_user', JSON.stringify(currentUser));
+                saveAccountToList(currentUser);
                 if (data.theme) {
                     document.documentElement.style.setProperty('--accent-color', data.theme);
                 }
@@ -1452,7 +1567,8 @@
                 mainScreen.style.display = 'flex';
                 startListeningChats();
                 switchTab('chatTab');
-                initSupport(); // Создаём чат с поддержкой
+                initSupport();
+                renderAccountSwitcher();
             } else {
                 alert('Неверный номер или пароль');
             }
@@ -1479,7 +1595,9 @@
                     mainScreen.style.display = 'flex';
                     startListeningChats();
                     switchTab('chatTab');
-                    initSupport(); // Создаём чат с поддержкой при автовходе
+                    initSupport();
+                    loadAccounts();
+                    renderAccountSwitcher();
                 }
             }
         });
@@ -1620,6 +1738,7 @@
         }
 
         function openChat(chatId) {
+            // Полная защита от повторного открытия
             if (currentChatId === chatId && chatScreen.style.display === 'flex') return;
             
             if (statusListener) { statusListener.off(); statusListener = null; }
@@ -1629,20 +1748,15 @@
             
             if (!chats || chats.length === 0) {
                 setTimeout(() => {
-                    if (currentChatId === chatId) {
-                        openChat(chatId);
-                    }
+                    if (currentChatId === chatId) openChat(chatId);
                 }, 300);
                 return;
             }
             
             const chat = chats.find(c => c.id === chatId);
             if (!chat) {
-                console.warn('Чат с ID ' + chatId + ' не найден в списке');
                 setTimeout(() => {
-                    if (currentChatId === chatId) {
-                        openChat(chatId);
-                    }
+                    if (currentChatId === chatId) openChat(chatId);
                 }, 300);
                 return;
             }
@@ -2581,19 +2695,6 @@
             settingsModal.classList.remove('show');
         }
 
-        // В настройках добавляем кнопку переключения аккаунта
-        const switchAccountBtn = document.createElement('button');
-        switchAccountBtn.className = 'settings-save';
-        switchAccountBtn.style.marginTop = '8px';
-        switchAccountBtn.style.background = '#ff6b6b';
-        switchAccountBtn.textContent = '🔄 Переключить аккаунт';
-        switchAccountBtn.onclick = () => {
-            if (confirm('Вы уверены, что хотите выйти из этого аккаунта?')) {
-                switchAccount();
-            }
-        };
-        settingsModal.querySelector('.settings-content').appendChild(switchAccountBtn);
-
         logoutBtn.addEventListener('click', () => {
             switchAccount();
         });
@@ -2611,7 +2712,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с поддержкой и мультиаккаунтом!');
+        console.log('✅ SAE Chat с мультиаккаунтом и починенным входом в чат!');
     </script>
 </body>
 </html>
