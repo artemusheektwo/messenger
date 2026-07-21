@@ -2164,6 +2164,40 @@
             return days + 'д';
         }
 
+        // ====== АБСОЛЮТНЫЙ ПЕРЕХВАТ КЛИКА ПО КНОПКЕ НАЗАД ======
+// Вешаем обработчик прямо на window (самый верхний уровень)
+window.addEventListener('click', function(e) {
+    const backBtn = e.target.closest('#chatBackBtn');
+    if (backBtn) {
+        e.stopImmediatePropagation(); // Полная блокировка всплытия
+        e.preventDefault();
+        console.log('🔙 Абсолютный перехват сработал!');
+
+        if (currentChatId) {
+            try {
+                db.ref('messages/' + currentChatId).off();
+            } catch (err) {}
+            if (statusListener) { statusListener.off(); statusListener = null; }
+            if (typingListener) { typingListener.off(); typingListener = null; }
+        }
+
+        chatScreen.style.display = 'none';
+        mainScreen.style.display = 'flex';
+        currentChatId = null;
+        currentChatUserUid = null;
+        hideContextMenu();
+        profileModal.classList.remove('show');
+        settingsModal.classList.remove('show');
+        
+        // Обновляем список чатов
+        if (typeof renderChatList === 'function') {
+            renderChatList();
+        }
+        
+        console.log('✅ Возврат в список чатов выполнен!');
+    }
+}, true); // true = фаза перехвата (самая ранняя)
+
         console.log('✅ SAE Chat финальная версия с исправленной кнопкой назад!');
     </script>
 </body>
