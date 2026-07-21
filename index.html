@@ -441,13 +441,23 @@
         .message.mine { align-self: flex-end; background: var(--accent-color); color: #fff; border-bottom-right-radius: 4px; }
         .message.other { align-self: flex-start; background: var(--bg-glass); backdrop-filter: blur(10px); border: 1px solid var(--border-glass); color: #fff; border-bottom-left-radius: 4px; }
         .message .msg-time { font-size: 10px; opacity: 0.6; margin-top: 4px; text-align: right; }
-        .message .reply-to {
-            font-size: 12px; background: rgba(255,255,255,0.05); border-radius: 8px;
-            padding: 4px 8px; margin-bottom: 4px; border-left: 3px solid var(--accent-color);
-            color: #bbb; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-        .message .reply-to .reply-author { color: var(--accent-color); font-weight: 600; }
         
+        /* Блок ответа (Reply) в стиле Telegram */
+        .message .reply-block {
+            display: block; padding: 4px 8px 4px 10px; margin-bottom: 6px;
+            border-left: 3px solid var(--accent-color);
+            background: rgba(255,255,255,0.06);
+            border-radius: 6px;
+        }
+        .message .reply-block .reply-name {
+            font-weight: 600; font-size: 12px; color: var(--accent-color);
+            display: block; margin-bottom: 1px;
+        }
+        .message .reply-block .reply-text {
+            font-size: 13px; color: #ccc; display: block;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
         /* Ссылки */
         .message a { 
             color: #4ecdc4; text-decoration: underline; cursor: pointer; 
@@ -1783,18 +1793,24 @@
 
             currentChatId = chatId;
             
-            if (!chats || chats.length === 0) {
-                setTimeout(() => {
-                    if (currentChatId === chatId) openChat(chatId);
-                }, 300);
-                return;
-            }
-            
+            // ЖДЁМ, ПОКА ЗАГРУЗЯТСЯ ЧАТЫ (ЖЁСТКАЯ СИНХРОНИЗАЦИЯ)
+            let attempts = 0;
+            const waitForChats = setInterval(() => {
+                attempts++;
+                if (chats && chats.length > 0) {
+                    clearInterval(waitForChats);
+                    tryOpenChat(chatId);
+                } else if (attempts > 10) { // 3 секунды ожидания
+                    clearInterval(waitForChats);
+                    alert('Не удалось загрузить чаты. Попробуйте позже.');
+                }
+            }, 300);
+        }
+
+        function tryOpenChat(chatId) {
             const chat = chats.find(c => c.id === chatId);
             if (!chat) {
-                setTimeout(() => {
-                    if (currentChatId === chatId) openChat(chatId);
-                }, 300);
+                alert('Чат не найден');
                 return;
             }
             
@@ -1903,12 +1919,15 @@
                     </div>`;
                 }
 
-                // Блок ответа (reply)
+                // Блок ответа (Reply) в стиле Telegram
                 if (msg.replyTo) {
-                    const replyPreview = document.createElement('div');
-                    replyPreview.className = 'reply-to';
-                    replyPreview.innerHTML = `<span class="reply-author">${msg.replyAuthor || 'Кто-то'}:</span> ${msg.replyText || '...'}`;
-                    div.insertBefore(replyPreview, div.firstChild);
+                    const replyHtml = `
+                        <div class="reply-block">
+                            <span class="reply-name">${msg.replyAuthor || 'Кто-то'}</span>
+                            <span class="reply-text">${msg.replyText || '...'}</span>
+                        </div>
+                    `;
+                    div.insertAdjacentHTML('afterbegin', replyHtml);
                 }
                 
                 div.innerHTML = `
@@ -2752,7 +2771,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с Reply и круглыми аватарками!');
+        console.log('✅ SAE Chat с Reply как в Telegram и починенным багом чата!');
     </script>
 </body>
 </html>
