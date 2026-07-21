@@ -158,8 +158,14 @@
         }
         .chat-back { 
             background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; margin-right: 12px; 
-            z-index: 9999 !important; /* Чтобы перебить модалки */
+            z-index: 99999 !important;
             position: relative;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
         }
         .chat-header-info { flex: 1; display: flex; align-items: center; justify-content: space-between; }
         .chat-header-left { display: flex; align-items: center; gap: 8px; cursor: pointer; }
@@ -498,7 +504,7 @@
             .chat-item { padding: 10px 12px; }
             .message { max-width: 90%; }
         }
-        /* Дополнительный фикс для мобильных, чтобы поле ввода не перекрывало */
+        /* Дополнительный фикс для мобильных */
         @media (max-width: 768px) {
             .chat-input-area {
                 padding-bottom: 30px !important;
@@ -507,32 +513,6 @@
                 padding-bottom: 80px !important;
             }
         }
-
-        /* ========== ГИГАНТСКАЯ КНОПКА НАЗАД ========== */
-#chatBackBtn {
-    position: relative !important;
-    z-index: 99999 !important; /* Самая высокая */
-    width: 50px !important;
-    height: 50px !important;
-    font-size: 32px !important; /* Огромная стрелка */
-    line-height: 1 !important;
-    padding: 10px !important;
-    margin-right: 8px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 50% !important;
-    background: rgba(255,255,255,0.05) !important; /* Лёгкий фон для видимости */
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    cursor: pointer !important;
-    transition: 0.2s !important;
-    -webkit-tap-highlight-color: transparent !important;
-}
-
-#chatBackBtn:active {
-    transform: scale(0.9) !important;
-    background: rgba(255,255,255,0.15) !important;
-}
     </style>
 </head>
 <body>
@@ -648,7 +628,7 @@
     <!-- ГЛАВНЫЙ ЭКРАН (Чаты) -->
     <div id="mainScreen">
         <div class="main-header">
-            <div class="main-title">sae chat</div>
+            <div class="main-title">Чаты</div>
             <div class="main-actions">
                 <button class="main-btn" id="profileBtn">👤</button>
                 <button class="main-btn" id="settingsBtn">⚙️</button>
@@ -657,6 +637,8 @@
             </div>
         </div>
         <div class="chat-list" id="chatList"></div>
+        <!-- СТЕНА / ЛЕНТА -->
+        <div id="wallContainer" style="display:none; margin-top: 20px;"></div>
     </div>
 
     <!-- ЭКРАН ЧАТА -->
@@ -767,6 +749,7 @@
             <div class="profile-number" id="profileModalNumber">Номер: 00000000</div>
             <div class="profile-info">
                 <div class="row"><span class="label">Статус</span><span class="value" id="profileModalStatus">онлайн</span></div>
+                <div class="row"><span class="label">О себе</span><span class="value" id="profileModalAbout">—</span></div>
                 <div class="row"><span class="label">Возраст</span><span class="value" id="profileModalAge">—</span></div>
                 <div class="row"><span class="label">Дата рождения</span><span class="value" id="profileModalBirthday">—</span></div>
             </div>
@@ -792,6 +775,10 @@
             <div class="settings-group">
                 <label>Дата рождения</label>
                 <input id="settingsBirthday" type="date">
+            </div>
+            <div class="settings-group">
+                <label>О себе</label>
+                <input id="settingsAbout" placeholder="Расскажи о себе..." style="padding:12px;">
             </div>
             <div class="settings-group">
                 <label>Аватарка (загрузите фото)</label>
@@ -849,7 +836,7 @@
         const IMGBB_API_KEY = '5f577dda10160d0afd0e1ad79d65ad73';
 
         // ========== ПЕРЕМЕННЫЕ ==========
-        let currentUser = { number: '', uid: '', avatar: null, firstName: '', lastName: '', age: '', birthday: '' };
+        let currentUser = { number: '', uid: '', avatar: null, firstName: '', lastName: '', age: '', birthday: '', about: '' };
         let isLoginMode = true;
         let currentChatId = null;
         let currentChatUserUid = null;
@@ -900,6 +887,7 @@
         const themeOptions = document.querySelectorAll('.theme-option');
 
         const chatList = document.getElementById('chatList');
+        const wallContainer = document.getElementById('wallContainer');
         const chatTitle = document.getElementById('chatTitle');
         const chatStatus = document.getElementById('chatStatus');
         const chatHeaderLeft = document.getElementById('chatHeaderLeft');
@@ -954,6 +942,7 @@
         const profileModalName = document.getElementById('profileModalName');
         const profileModalNumber = document.getElementById('profileModalNumber');
         const profileModalStatus = document.getElementById('profileModalStatus');
+        const profileModalAbout = document.getElementById('profileModalAbout');
         const profileModalAge = document.getElementById('profileModalAge');
         const profileModalBirthday = document.getElementById('profileModalBirthday');
         const profileActions = document.getElementById('profileActions');
@@ -965,6 +954,7 @@
         const settingsFirstName = document.getElementById('settingsFirstName');
         const settingsLastName = document.getElementById('settingsLastName');
         const settingsBirthday = document.getElementById('settingsBirthday');
+        const settingsAbout = document.getElementById('settingsAbout');
         const settingsAvatarFile = document.getElementById('settingsAvatarFile');
         const settingsAccentColor = document.getElementById('settingsAccentColor');
         const settingsBg = document.getElementById('settingsBg');
@@ -1209,6 +1199,7 @@
                 lastName: lastName || '',
                 birthday: birthday,
                 age: age,
+                about: '',
                 avatar: avatarUrl,
                 theme: selectedTheme,
                 status: 'online',
@@ -1364,6 +1355,7 @@
                 chats = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
                 renderChatList();
             });
+            renderWall(); // Показываем стену
         }
 
         function renderChatList() {
@@ -1568,25 +1560,7 @@
                     });
                 }
                 
-                const reaction = div.querySelector('.photo-reaction');
-                if (reaction) {
-                    reaction.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        const msgId = reaction.dataset.msgid;
-                        const msgRef = db.ref('messages/' + currentChatId + '/' + msgId);
-                        const snap = await msgRef.once('value');
-                        const data = snap.val();
-                        const newReaction = data && data.reaction === '❤️' ? '' : '❤️';
-                        await msgRef.update({ reaction: newReaction });
-                        if (newReaction) {
-                            reaction.textContent = '❤️';
-                            reaction.classList.add('liked');
-                        } else {
-                            reaction.textContent = '❤️';
-                            reaction.classList.remove('liked');
-                        }
-                    });
-                }
+                // Реакции теперь ловятся глобально, этот блок можно оставить пустым или убрать
                 
                 let pressTimer = null;
                 div.addEventListener('touchstart', (e) => {
@@ -1607,6 +1581,93 @@
             });
             messagesArea.scrollTop = messagesArea.scrollHeight;
         }
+
+        // ========== СТЕНА / ЛЕНТА ==========
+        function renderWall() {
+            if (!wallContainer) return;
+            if (currentChatId) {
+                wallContainer.style.display = 'none';
+                return;
+            }
+            wallContainer.style.display = 'block';
+            
+            db.ref('posts').on('value', snapshot => {
+                const data = snapshot.val();
+                if (!data) {
+                    wallContainer.innerHTML = `
+                        <div style="text-align:center;color:var(--text-muted);padding:20px;">
+                            <div style="margin-bottom:12px;">📢 Здесь будет лента друзей (как в ВК)</div>
+                            <button onclick="addWallPost(prompt('Напиши что-нибудь...'))" style="padding:10px 20px;border-radius:50px;border:none;background:var(--accent-color);color:#fff;cursor:pointer;">➕ Написать пост</button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const posts = Object.keys(data).reverse();
+                let html = `
+                    <div style="text-align:center;margin-bottom:16px;">
+                        <button onclick="addWallPost(prompt('Напиши что-нибудь...'))" style="padding:10px 20px;border-radius:50px;border:none;background:var(--accent-color);color:#fff;cursor:pointer;">➕ Написать пост</button>
+                    </div>
+                `;
+                posts.forEach(key => {
+                    const post = data[key];
+                    const avatar = typeof post.avatar === 'string' && post.avatar.startsWith('http') 
+                        ? `<img src="${post.avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">` 
+                        : (post.avatar?.emoji || '👤');
+                    
+                    const liked = post.likes && post.likes[currentUser.uid];
+                    
+                    html += `
+                        <div class="wall-post" style="background:var(--bg-glass);backdrop-filter:blur(10px);border:1px solid var(--border-glass);border-radius:16px;padding:16px;margin-bottom:12px;">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                                <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:20px;">${avatar}</div>
+                                <div>
+                                    <div style="font-weight:600;">${post.authorName || 'Неизвестный'}</div>
+                                    <div style="font-size:12px;color:var(--text-muted);">${timeAgo(post.time)}</div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom:8px;">${post.text}</div>
+                            <div style="display:flex;gap:12px;">
+                                <button class="wall-like-btn" data-postid="${key}" style="background:transparent;border:none;color:${liked ? '#ff6b6b' : 'var(--text-muted)'};cursor:pointer;display:flex;align-items:center;gap:4px;font-size:16px;">
+                                    ❤️ <span>${post.likes ? Object.keys(post.likes).length : 0}</span>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                wallContainer.innerHTML = html;
+                
+                // Обработчики лайков на стене
+                document.querySelectorAll('.wall-like-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const postId = this.dataset.postid;
+                        const postRef = db.ref('posts/' + postId + '/likes/' + currentUser.uid);
+                        const snap = await postRef.once('value');
+                        if (snap.exists()) {
+                            await postRef.remove();
+                        } else {
+                            await postRef.set(true);
+                        }
+                        // Обновим стену без перезагрузки страницы (просто вызовем рендер)
+                        renderWall();
+                    });
+                });
+            });
+        }
+
+        // Добавить пост на стену
+        window.addWallPost = function(text) {
+            if (!text || !text.trim()) return;
+            const postRef = db.ref('posts').push();
+            postRef.set({
+                authorId: currentUser.uid,
+                authorName: `${currentUser.firstName} ${currentUser.lastName || ''}`,
+                avatar: currentUser.avatar,
+                text: text.trim(),
+                time: Date.now()
+            });
+            // renderWall() вызовется автоматически через слушатель Firebase
+        };
 
         // ========== ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ==========
         profileBtn.addEventListener('click', (e) => {
@@ -1658,6 +1719,8 @@
             profileModalAvatar.innerHTML = avatar;
             profileModalName.textContent = `${data.firstName} ${data.lastName || ''}`;
             profileModalNumber.textContent = `Номер: ${uid}`;
+            profileModalStatus.textContent = data.status || 'онлайн';
+            profileModalAbout.textContent = data.about || '—';
             profileModalAge.textContent = data.age || '—';
             profileModalBirthday.textContent = data.birthday || '—';
 
@@ -1769,29 +1832,22 @@
             profileModal.classList.remove('show');
         });
 
-        // ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ НАЗАД (РАБОТАЕТ 100%) ==========
-        // Обработчик вешается прямо на кнопку, с z-index и без конфликтов
-        document.getElementById('chatBackBtn').addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log('🔙 Нажата кнопка Назад');
-            
-            if (currentChatId) {
-                db.ref('messages/' + currentChatId).off();
-                try {
-    if (statusListener && typeof statusListener.off === 'function') {
-        statusListener.off();
-    }
-} catch (e) {}
-statusListener = null;
+        // ========== ИСПРАВЛЕННАЯ ФУНКЦИЯ НАЗАД ==========
+        function goBack() {
+            try {
+                if (currentChatId) {
+                    db.ref('messages/' + currentChatId).off();
+                    if (statusListener && typeof statusListener.off === 'function') { 
+                        statusListener.off(); 
+                        statusListener = null; 
+                    }
+                    if (typingListener && typeof typingListener.off === 'function') { 
+                        typingListener.off(); 
+                        typingListener = null; 
+                    }
+                }
+            } catch (e) {}
 
-try {
-    if (typingListener && typeof typingListener.off === 'function') {
-        typingListener.off();
-    }
-} catch (e) {}
-typingListener = null;
-            }
             chatScreen.style.display = 'none';
             mainScreen.style.display = 'flex';
             currentChatId = null;
@@ -1800,7 +1856,18 @@ typingListener = null;
             profileModal.classList.remove('show');
             settingsModal.classList.remove('show');
             renderChatList();
-        });
+            renderWall();
+        }
+
+        // Абсолютный перехватчик кнопки Назад
+        window.addEventListener('click', function(e) {
+            const backBtn = e.target.closest('#chatBackBtn');
+            if (backBtn) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                goBack();
+            }
+        }, true);
 
         // ========== ВСТРОЕННЫЙ БРАУЗЕР ==========
         function openInBrowser(url) {
@@ -1856,6 +1923,34 @@ typingListener = null;
             if (url) {
                 navigator.clipboard.writeText(url);
                 alert('🔗 Ссылка скопирована!');
+            }
+        });
+
+        // ========== ГЛОБАЛЬНЫЙ ОБРАБОТЧИК РЕАКЦИЙ (ЧАТ) ==========
+        document.addEventListener('click', async function(e) {
+            const reaction = e.target.closest('.photo-reaction');
+            if (reaction) {
+                e.stopPropagation();
+                const msgId = reaction.dataset.msgid;
+                if (!msgId || !currentChatId) return;
+                
+                const msgRef = db.ref('messages/' + currentChatId + '/' + msgId);
+                try {
+                    const snap = await msgRef.once('value');
+                    const data = snap.val();
+                    const newReaction = data && data.reaction === '❤️' ? '' : '❤️';
+                    await msgRef.update({ reaction: newReaction });
+                    
+                    if (newReaction) {
+                        reaction.textContent = '❤️';
+                        reaction.classList.add('liked');
+                    } else {
+                        reaction.textContent = '❤️';
+                        reaction.classList.remove('liked');
+                    }
+                } catch (err) {
+                    console.error('Ошибка реакции:', err);
+                }
             }
         });
 
@@ -2086,6 +2181,7 @@ typingListener = null;
             settingsFirstName.value = currentUser.firstName || '';
             settingsLastName.value = currentUser.lastName || '';
             settingsBirthday.value = currentUser.birthday || '';
+            settingsAbout.value = currentUser.about || '';
         });
 
         settingsCloseBtn.addEventListener('click', () => {
@@ -2097,6 +2193,7 @@ typingListener = null;
             const firstName = settingsFirstName.value.trim();
             const lastName = settingsLastName.value.trim();
             const birthday = settingsBirthday.value;
+            const about = settingsAbout.value.trim();
             const accentColor = settingsAccentColor.value;
             const bg = settingsBg.value;
 
@@ -2116,6 +2213,7 @@ typingListener = null;
                 lastName: lastName || currentUser.lastName,
                 birthday: birthday || currentUser.birthday,
                 age: age,
+                about: about || currentUser.about || '',
                 theme: accentColor
             };
 
@@ -2175,53 +2273,7 @@ typingListener = null;
             return days + 'д';
         }
 
-        // ====== АБСОЛЮТНЫЙ ПЕРЕХВАТ КЛИКА ПО КНОПКЕ НАЗАД ======
-// Вешаем обработчик прямо на window (самый верхний уровень)
-// ====== АБСОЛЮТНЫЙ ПЕРЕХВАТ КЛИКА ПО КНОПКЕ НАЗАД ======
-window.addEventListener('click', function(e) {
-    const backBtn = e.target.closest('#chatBackBtn');
-    if (backBtn) {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        console.log('🔙 Абсолютный перехват сработал!');
-
-        if (currentChatId) {
-            try {
-                db.ref('messages/' + currentChatId).off();
-            } catch (err) {}
-            
-            // Исправленный блок отключения слушателей
-            try {
-                if (statusListener && typeof statusListener.off === 'function') {
-                    statusListener.off();
-                }
-            } catch (e) {}
-            statusListener = null;
-
-            try {
-                if (typingListener && typeof typingListener.off === 'function') {
-                    typingListener.off();
-                }
-            } catch (e) {}
-            typingListener = null;
-        }
-
-        chatScreen.style.display = 'none';
-        mainScreen.style.display = 'flex';
-        currentChatId = null;
-        currentChatUserUid = null;
-        hideContextMenu();
-        profileModal.classList.remove('show');
-        settingsModal.classList.remove('show');
-        
-        if (typeof renderChatList === 'function') {
-            renderChatList();
-        }
-        
-        console.log('✅ Возврат в список чатов выполнен!');
-    }
-}, true);
-        console.log('✅ SAE Chat финальная версия с исправленной кнопкой назад!');
+        console.log('✅ SAE Chat финальная версия с лентой, полем "О себе" и реакциями!');
     </script>
 </body>
 </html>
