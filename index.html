@@ -187,10 +187,21 @@
             
         }
         .chat-attach { 
-            width: 36px; height: 36px; border-radius: 50%; border: none; 
-            background: transparent; color: var(--text-muted); font-size: 22px; 
-            cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center;
-        }
+    width: 44px; 
+    height: 44px; 
+    border-radius: 50%; 
+    border: none; 
+    background: transparent; 
+    color: var(--text-muted); 
+    font-size: 22px; 
+    cursor: pointer; 
+    transition: 0.3s; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    flex-shrink: 0;          /* ЗАПРЕЩАЕТ СЖИМАТЬСЯ */
+    min-width: 44px;         /* ФИКСИРУЕТ МИНИМАЛЬНУЮ ШИРИНУ */
+}
         .chat-attach:hover { color: #fff; transform: scale(1.1); }
         
         .chat-input { 
