@@ -723,7 +723,7 @@
     <!-- ГЛАВНЫЙ ЭКРАН -->
     <div id="mainScreen">
         <div class="main-header">
-            <div class="main-title">sae</div>
+            <div class="main-title">sae chat</div>
             <div class="main-actions">
                 <button class="main-btn" id="feedTabBtn">📰</button>
                 <button class="main-btn" id="chatTabBtn">💬</button>
@@ -1878,33 +1878,7 @@
             }
         });
 
-        createPostPublish.addEventListener('click', async () => {
-            const text = createPostText.value.trim();
-            if (!text && !createPostPendingImage) {
-                alert('Напишите текст или прикрепите фото!');
-                return;
-            }
-            
-            const postData = {
-                authorId: currentUser.uid,
-                authorName: `${currentUser.firstName} ${currentUser.lastName || ''}`,
-                avatar: currentUser.avatar,
-                text: text || '',
-                time: Date.now()
-            };
-            if (createPostPendingImage) {
-                postData.image = createPostPendingImage;
-                createPostPendingImage = null;
-            }
-            
-            const postRef = db.ref('posts').push();
-            await postRef.set(postData);
-            
-            createPostModal.classList.remove('show');
-            createPostText.value = '';
-            createPostFile.value = '';
-            createPostFileName.textContent = '';
-        });
+        createPostPublish
 
         // ========== ПРОФИЛЬ ==========
         profileBtn.addEventListener('click', (e) => {
