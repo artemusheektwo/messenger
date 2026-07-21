@@ -420,7 +420,7 @@
         /* ====== МОДАЛКА ПОЗДРАВЛЕНИЯ (КОНФЕТТИ) ====== */
         #congratsModal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 9999 !important; /* Самая высокая */
+            z-index: 9999 !important;
             background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
             justify-content: center; align-items: center;
             pointer-events: none;
@@ -1105,7 +1105,7 @@
             regAvatarPreview.style.background = regColorSelect.value;
         });
 
-        // ========== РЕГИСТРАЦИЯ (с вызовом конфетти) ==========
+        // ========== РЕГИСТРАЦИЯ ==========
         registerSubmitBtn.addEventListener('click', async () => {
             const firstName = regFirstName.value.trim();
             const lastName = regLastName.value.trim();
@@ -1159,7 +1159,6 @@
             currentUser = { ...newUser, uid: number };
             localStorage.setItem('messenger_user', JSON.stringify(currentUser));
             
-            // === ПОКАЗЫВАЕМ ПОЗДРАВЛЕНИЕ С КОНФЕТТИ ===
             congratsNumber.textContent = number;
             fireConfetti();
             congratsModal.classList.add('show');
@@ -1320,13 +1319,33 @@
                 const div = document.createElement('div');
                 div.className = 'chat-item';
                 const otherUser = chat.participants.find(p => p !== currentUser.uid);
-                const otherName = otherUser || 'Чат';
-                const avatar = otherUser ? getUserAvatar(otherUser) : '💬';
+                
+                if (otherUser) {
+                    db.ref('users/' + otherUser).once('value', (snap) => {
+                        const userData = snap.val();
+                        if (userData) {
+                            const nameSpan = div.querySelector('.chat-name');
+                            const avatarDiv = div.querySelector('.chat-avatar');
+                            if (nameSpan) {
+                                const customName = getContactName(otherUser);
+                                nameSpan.textContent = customName || `${userData.firstName} ${userData.lastName || ''}`;
+                            }
+                            if (avatarDiv) {
+                                if (typeof userData.avatar === 'string' && userData.avatar.startsWith('http')) {
+                                    avatarDiv.innerHTML = `<img src="${userData.avatar}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">`;
+                                } else {
+                                    avatarDiv.textContent = userData.avatar?.emoji || '👤';
+                                    avatarDiv.style.background = userData.avatar?.color || 'rgba(255,255,255,0.1)';
+                                }
+                            }
+                        }
+                    });
+                }
                 
                 div.innerHTML = `
-                    <div class="chat-avatar">${avatar}</div>
+                    <div class="chat-avatar">👤</div>
                     <div class="chat-info">
-                        <div class="chat-name">${otherName}</div>
+                        <div class="chat-name">${otherUser || 'Чат'}</div>
                         <div class="chat-last">${chat.lastMessage || 'Нет сообщений'}</div>
                     </div>
                     <div class="chat-time">${chat.lastTime ? timeAgo(chat.lastTime) : ''}</div>
@@ -1334,10 +1353,6 @@
                 div.addEventListener('click', () => openChat(chat.id));
                 chatList.appendChild(div);
             });
-        }
-
-        function getUserAvatar(uid) {
-            return '👤';
         }
 
         function openChat(chatId) {
@@ -1501,8 +1516,16 @@
                         const msgRef = db.ref('messages/' + currentChatId + '/' + msgId);
                         const snap = await msgRef.once('value');
                         const data = snap.val();
-                        const newReaction = data.reaction === '❤️' ? '' : '❤️';
+                        const newReaction = data && data.reaction === '❤️' ? '' : '❤️';
                         await msgRef.update({ reaction: newReaction });
+                        // Обновляем визуально сразу
+                        if (newReaction) {
+                            reaction.textContent = '❤️';
+                            reaction.classList.add('liked');
+                        } else {
+                            reaction.textContent = '❤️';
+                            reaction.classList.remove('liked');
+                        }
                     });
                 }
                 
@@ -1527,7 +1550,6 @@
         }
 
         // ========== ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ==========
-        // Левая кнопка 👤 открывает свой профиль
         profileBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (currentUser && currentUser.uid) {
@@ -1589,7 +1611,6 @@
             profileActions.innerHTML = '';
 
             if (!isSelf) {
-                // Если это не свой профиль — показываем кнопки действий
                 const editNameBtn = document.createElement('button');
                 editNameBtn.className = 'profile-btn';
                 editNameBtn.textContent = '✏️ Изменить имя контакта';
@@ -1636,7 +1657,6 @@
                 deleteChatBtn.onclick = () => deleteChat(uid);
                 profileActions.appendChild(deleteChatBtn);
             } else {
-                // Если свой профиль — показываем кнопку настроек
                 const settingsBtnProfile = document.createElement('button');
                 settingsBtnProfile.className = 'profile-btn';
                 settingsBtnProfile.textContent = '⚙️ Открыть настройки';
@@ -1682,12 +1702,50 @@
                 await db.ref('messages/' + currentChatId).remove();
                 await db.ref('chats/' + currentChatId).remove();
                 profileModal.classList.remove('show');
-                chatBackBtn.click();
+                goBack();
             }
         }
 
         profileCloseBtn.addEventListener('click', () => {
             profileModal.classList.remove('show');
+        });
+
+        // ========== ФУНКЦИЯ НАЗАД (БЕЗ ONCLICK В HTML) ==========
+        function goBack() {
+            console.log('🔙 Выполняется goBack');
+            try {
+                if (currentChatId) {
+                    db.ref('messages/' + currentChatId).off();
+                    if (statusListener) { 
+                        statusListener.off(); 
+                        statusListener = null; 
+                    }
+                    if (typingListener) { 
+                        typingListener.off(); 
+                        typingListener = null; 
+                    }
+                }
+                
+                chatScreen.style.display = 'none';
+                mainScreen.style.display = 'flex';
+                currentChatId = null;
+                currentChatUserUid = null;
+                hideContextMenu();
+                profileModal.classList.remove('show');
+                settingsModal.classList.remove('show');
+                
+                // Принудительно обновляем список чатов
+                renderChatList();
+            } catch (e) {
+                console.error('Ошибка в goBack:', e);
+            }
+        }
+
+        // Единственный обработчик кнопки Назад
+        document.getElementById('chatBackBtn').addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🔙 Кнопка Назад нажата');
+            goBack();
         });
 
         // ========== ВСТРОЕННЫЙ БРАУЗЕР ==========
@@ -1962,20 +2020,6 @@
             }
         });
 
-        // ========== НАЗАД ==========
-        chatBackBtn.addEventListener('click', () => {
-            if (currentChatId) {
-                db.ref('messages/' + currentChatId).off();
-                if (statusListener) { statusListener.off(); statusListener = null; }
-                if (typingListener) { typingListener.off(); typingListener = null; }
-            }
-            chatScreen.style.display = 'none';
-            mainScreen.style.display = 'flex';
-            currentChatId = null;
-            currentChatUserUid = null;
-            hideContextMenu();
-        });
-
         // ========== НАСТРОЙКИ ==========
         function applySettings() {
             document.documentElement.style.setProperty('--accent-color', userSettings.accentColor);
@@ -2077,7 +2121,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с конфетти и исправленной кнопкой профиля запущен!');
+        console.log('✅ SAE Chat с исправленным goBack и реакцией!');
     </script>
 </body>
 </html>
