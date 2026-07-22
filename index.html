@@ -138,35 +138,6 @@
         }
         .main-btn:hover { background: var(--bg-glass-hover); transform: scale(1.05); }
 
-        /* ====== ПЕРЕКЛЮЧАТЕЛЬ АККАУНТОВ ====== */
-        #accountSwitcher {
-            display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 14px 0;
-            white-space: nowrap; scrollbar-width: none; -ms-overflow-style: none;
-        }
-        #accountSwitcher::-webkit-scrollbar { display: none; }
-        .account-item {
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            cursor: pointer; padding: 4px 8px; border-radius: 12px; transition: 0.2s;
-            flex-shrink: 0;
-        }
-        .account-item:hover { background: var(--bg-glass-hover); }
-        .account-item.active .account-avatar { border: 2px solid var(--accent-color); }
-        .account-avatar {
-            width: 48px; height: 48px; border-radius: 50% !important;
-            background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;
-            font-size: 22px; border: 2px solid transparent; transition: 0.2s;
-            overflow: hidden; flex-shrink: 0;
-        }
-        .account-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-        .account-name { font-size: 11px; color: var(--text-muted); max-width: 60px; overflow: hidden; text-overflow: ellipsis; }
-        .account-add {
-            width: 48px; height: 48px; border-radius: 50%;
-            background: rgba(255,255,255,0.05); border: 2px dashed var(--border-glass);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 28px; color: var(--text-muted); cursor: pointer; transition: 0.2s;
-        }
-        .account-add:hover { background: var(--bg-glass-hover); color: #fff; }
-
         /* ====== КОНТЕЙНЕРЫ ====== */
         .tab-content { display: none; flex: 1; overflow-y: auto; padding-bottom: 80px; }
         .tab-content.active { display: block; }
@@ -655,6 +626,31 @@
             font-weight: 600; cursor: pointer; transition: 0.3s; margin-top: 8px;
         }
         .settings-save:hover { transform: scale(1.02); }
+        
+        /* ====== СПИСОК АККАУНТОВ В НАСТРОЙКАХ ====== */
+        #settingsAccountsList {
+            display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;
+        }
+        .settings-account-item {
+            display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+            background: var(--bg-glass); border-radius: 12px; border: 1px solid var(--border-glass);
+            cursor: pointer; transition: 0.2s;
+        }
+        .settings-account-item:hover { background: var(--bg-glass-hover); }
+        .settings-account-item.active-account { border-color: var(--accent-color); background: rgba(138, 92, 245, 0.1); }
+        .settings-account-item .sa-avatar {
+            width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+            background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;
+        }
+        .settings-account-item .sa-name { flex: 1; font-size: 15px; font-weight: 500; }
+        .settings-account-item .sa-check { color: var(--accent-color); font-size: 18px; }
+        
+        .settings-add-account {
+            display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+            border-radius: 12px; border: 2px dashed var(--border-glass);
+            cursor: pointer; transition: 0.2s; color: var(--text-muted);
+        }
+        .settings-add-account:hover { background: var(--bg-glass-hover); color: #fff; border-color: var(--accent-color); }
 
         /* ====== МОДАЛКА ПОЗДРАВЛЕНИЯ (КОНФЕТТИ) ====== */
         #congratsModal {
@@ -842,9 +838,6 @@
             </div>
         </div>
 
-        <!-- Переключатель аккаунтов -->
-        <div id="accountSwitcher"></div>
-
         <!-- Вкладка Чаты -->
         <div class="tab-content active" id="chatTab">
             <div class="chat-list" id="chatList"></div>
@@ -986,6 +979,7 @@
     <!-- МОДАЛКА ПРОФИЛЯ -->
     <div id="profileModal">
         <div class="profile-content">
+            <button class="profile-close" id="profileBackBtn" style="background:transparent;border:none;color:#fff;font-size:24px;position:absolute;top:16px;left:16px;width:auto;padding:8px;cursor:pointer;border-radius:50%;">‹</button>
             <div class="profile-title" id="profileModalTitle">👤 Профиль</div>
             <div class="profile-avatar" id="profileModalAvatar">👤</div>
             <div class="profile-name" id="profileModalName">Имя</div>
@@ -1015,7 +1009,18 @@
     <!-- МОДАЛКА НАСТРОЕК -->
     <div id="settingsModal">
         <div class="settings-content">
-            <div class="settings-title">⚙️ Настройки</div>
+            <button class="settings-close" id="settingsBackBtn" style="background:transparent;border:none;color:#fff;font-size:24px;position:absolute;top:16px;left:16px;width:auto;padding:8px;cursor:pointer;border-radius:50%;">‹</button>
+            <div class="settings-title" style="margin-top:10px;">⚙️ Настройки</div>
+            
+            <div class="settings-group" style="border-bottom:1px solid var(--border-glass); padding-bottom: 16px;">
+                <label style="font-weight:600; font-size:16px; color:#fff;">👤 Аккаунты</label>
+                <div id="settingsAccountsList"></div>
+                <div class="settings-add-account" id="settingsAddAccountBtn">
+                    <span style="font-size:24px;font-weight:300;">+</span>
+                    <span>Добавить аккаунт</span>
+                </div>
+            </div>
+
             <div class="settings-group">
                 <label>Имя</label>
                 <input id="settingsFirstName" placeholder="Имя">
@@ -1104,8 +1109,8 @@
         let feedListener = null;
         let accounts = [];
         let replyTarget = null;
+        let notificationListener = null;
 
-        // Список статусов
         const STATUSES = {
             'online': { emoji: '🟢', label: 'В сети' },
             'away': { emoji: '🟡', label: 'Отошёл' },
@@ -1163,7 +1168,6 @@
         const createPostCancel = document.getElementById('createPostCancel');
         const createPostPublish = document.getElementById('createPostPublish');
 
-        const accountSwitcher = document.getElementById('accountSwitcher');
         const chatList = document.getElementById('chatList');
         const chatTitle = document.getElementById('chatTitle');
         const chatStatus = document.getElementById('chatStatus');
@@ -1219,6 +1223,7 @@
         const ctxDelete = document.getElementById('ctxDelete');
 
         const profileModal = document.getElementById('profileModal');
+        const profileBackBtn = document.getElementById('profileBackBtn');
         const profileModalTitle = document.getElementById('profileModalTitle');
         const profileModalAvatar = document.getElementById('profileModalAvatar');
         const profileModalName = document.getElementById('profileModalName');
@@ -1235,6 +1240,7 @@
         const statusCloseBtn = document.getElementById('statusCloseBtn');
 
         const settingsModal = document.getElementById('settingsModal');
+        const settingsBackBtn = document.getElementById('settingsBackBtn');
         const settingsCloseBtn = document.getElementById('settingsCloseBtn');
         const settingsSaveBtn = document.getElementById('settingsSaveBtn');
         const settingsFirstName = document.getElementById('settingsFirstName');
@@ -1244,6 +1250,8 @@
         const settingsAvatarFile = document.getElementById('settingsAvatarFile');
         const settingsAccentColor = document.getElementById('settingsAccentColor');
         const settingsBg = document.getElementById('settingsBg');
+        const settingsAccountsList = document.getElementById('settingsAccountsList');
+        const settingsAddAccountBtn = document.getElementById('settingsAddAccountBtn');
 
         const congratsModal = document.getElementById('congratsModal');
         const congratsNumber = document.getElementById('congratsNumber');
@@ -1358,6 +1366,30 @@
             return contactName || null;
         }
 
+        // ========== УВЕДОМЛЕНИЯ ==========
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                console.log('Этот браузер не поддерживает уведомления');
+                return;
+            }
+            if (Notification.permission === 'granted') {
+                return;
+            }
+            if (Notification.permission !== 'denied') {
+                await Notification.requestPermission();
+            }
+        }
+
+        function sendBrowserNotification(title, body) {
+            if (!('Notification' in window)) return;
+            if (Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: body,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png' // Замените на свою иконку при желании
+                });
+            }
+        }
+
         // ========== КОНФЕТТИ ==========
         function fireConfetti() {
             confettiContainer.innerHTML = '';
@@ -1392,16 +1424,21 @@
                 localStorage.setItem('sae_accounts', JSON.stringify(saved));
             }
             accounts = saved;
-            renderAccountSwitcher();
+            if (settingsModal.classList.contains('show')) {
+                renderSettingsAccounts();
+            }
         }
 
         function loadAccounts() {
             const saved = JSON.parse(localStorage.getItem('sae_accounts') || '[]');
             accounts = saved;
-            renderAccountSwitcher();
+            if (settingsModal.classList.contains('show')) {
+                renderSettingsAccounts();
+            }
         }
 
         function switchToAccount(uid) {
+            // Очистка
             if (currentChatId) {
                 db.ref('messages/' + currentChatId).off();
                 if (statusListener) { statusListener.off(); statusListener = null; }
@@ -1426,37 +1463,13 @@
                         document.documentElement.style.setProperty('--accent-color', data.theme);
                     }
                     startListeningChats();
-                    renderAccountSwitcher();
                     switchTab('chatTab');
                     initSupport();
+                    if (settingsModal.classList.contains('show')) {
+                        settingsModal.classList.remove('show');
+                    }
                 }
             });
-        }
-
-        function renderAccountSwitcher() {
-            accountSwitcher.innerHTML = '';
-            accounts.forEach(acc => {
-                const div = document.createElement('div');
-                div.className = 'account-item' + (acc.uid === currentUser.uid ? ' active' : '');
-                div.innerHTML = `
-                    <div class="account-avatar">${getAvatarHtml(acc.avatar)}</div>
-                    <div class="account-name">${acc.firstName || acc.number}</div>
-                `;
-                div.onclick = () => {
-                    if (acc.uid !== currentUser.uid) {
-                        switchToAccount(acc.uid);
-                    }
-                };
-                accountSwitcher.appendChild(div);
-            });
-            
-            const addDiv = document.createElement('div');
-            addDiv.className = 'account-add';
-            addDiv.textContent = '+';
-            addDiv.onclick = () => {
-                switchAccount();
-            };
-            accountSwitcher.appendChild(addDiv);
         }
 
         // ========== ИНИЦИАЛИЗАЦИЯ ПОДДЕРЖКИ ==========
@@ -1656,7 +1669,6 @@
             mainScreen.style.display = 'flex';
             startListeningChats();
             switchTab('chatTab');
-            renderAccountSwitcher();
         });
 
         // ========== ВХОД ==========
@@ -1683,14 +1695,13 @@
                 startListeningChats();
                 switchTab('chatTab');
                 initSupport();
-                renderAccountSwitcher();
             } else {
                 alert('Неверный номер или пароль');
             }
         });
 
         // ========== АВТОВХОД ==========
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             const savedUser = localStorage.getItem('messenger_user');
             const savedSettings = localStorage.getItem('messenger_settings');
             
@@ -1698,6 +1709,9 @@
                 userSettings = JSON.parse(savedSettings);
                 applySettings();
             }
+
+            // Запрос разрешения на уведомления
+            await requestNotificationPermission();
 
             if (savedUser) {
                 currentUser = JSON.parse(savedUser);
@@ -1712,7 +1726,6 @@
                     switchTab('chatTab');
                     initSupport();
                     loadAccounts();
-                    renderAccountSwitcher();
                 }
             }
         });
@@ -1941,7 +1954,6 @@
                     if (typingData && typingData[uid] === true) {
                         chatStatus.textContent = '✍️ печатает...';
                     } else {
-                        // Возвращаем статус, если перестал печатать
                         db.ref('users/' + uid + '/status').once('value', (s) => {
                             const sk = s.val() || 'offline';
                             const sd = STATUSES[sk] || STATUSES['offline'];
@@ -2061,6 +2073,41 @@
                 messagesArea.appendChild(div);
             });
             messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        // ========== УВЕДОМЛЕНИЯ (ФОН) ==========
+        function startNotificationListener() {
+            if (notificationListener) {
+                db.ref('messages').off('child_added', notificationListener);
+                notificationListener = null;
+            }
+
+            notificationListener = db.ref('messages').on('child_added', (snapshot) => {
+                const chatId = snapshot.key;
+                if (chatId === currentChatId) return; // Не уведомляем, если мы уже в этом чате
+
+                snapshot.ref.once('value', (msgSnap) => {
+                    const allMsgs = msgSnap.val();
+                    if (!allMsgs) return;
+                    
+                    // Берем последнее сообщение
+                    const keys = Object.keys(allMsgs);
+                    const lastKey = keys[keys.length - 1];
+                    const msg = allMsgs[lastKey];
+
+                    if (!msg || msg.sender === currentUser.uid) return;
+
+                    // Определяем отправителя
+                    db.ref('users/' + msg.sender).once('value', (userSnap) => {
+                        const userData = userSnap.val();
+                        if (userData) {
+                            const name = `${userData.firstName} ${userData.lastName || ''}`;
+                            const text = msg.text || '📷 Фото';
+                            sendBrowserNotification(name, text);
+                        }
+                    });
+                });
+            });
         }
 
         // ========== ЛЕНТА (FEED) ==========
@@ -2262,7 +2309,6 @@
                     currentUser.status = key;
                     localStorage.setItem('messenger_user', JSON.stringify(currentUser));
                     statusModal.classList.remove('show');
-                    // Обновим статус в профиле, если открыт
                     if (profileModal.classList.contains('show')) {
                         openUserProfile(currentUser.uid);
                     }
@@ -2288,6 +2334,10 @@
             } else {
                 alert('Сначала войдите в аккаунт!');
             }
+        });
+
+        profileBackBtn.addEventListener('click', () => {
+            profileModal.classList.remove('show');
         });
 
         chatHeaderLeft.addEventListener('click', (e) => {
@@ -2640,7 +2690,6 @@
         function handleTyping() {
             if (!currentChatId || !currentChatUserUid) return;
             
-            // Отправляем сигнал печатания
             db.ref('typing/' + currentChatId + '/' + currentUser.uid).set(true);
             
             clearTimeout(typingTimeout);
@@ -2654,7 +2703,6 @@
             if (!text && !pendingImageData) return;
             if (!currentChatId) return;
             
-            // Убираем статус печатания при отправке
             if (currentChatId && currentChatUserUid) {
                 db.ref('typing/' + currentChatId + '/' + currentUser.uid).remove();
             }
@@ -2763,11 +2811,32 @@
             }
         });
 
-        // ========== НАСТРОЙКИ ==========
+        // ========== НАСТРОЙКИ И АККАУНТЫ ==========
         function applySettings() {
             document.documentElement.style.setProperty('--accent-color', userSettings.accentColor);
             settingsAccentColor.value = userSettings.accentColor;
             settingsBg.value = userSettings.bg;
+        }
+
+        function renderSettingsAccounts() {
+            settingsAccountsList.innerHTML = '';
+            
+            accounts.forEach(acc => {
+                const div = document.createElement('div');
+                div.className = 'settings-account-item' + (acc.uid === currentUser.uid ? ' active-account' : '');
+                div.innerHTML = `
+                    <div class="sa-avatar">${getAvatarHtml(acc.avatar)}</div>
+                    <div class="sa-name">${acc.firstName || acc.number}</div>
+                    ${acc.uid === currentUser.uid ? '<div class="sa-check">✅</div>' : ''}
+                `;
+                div.onclick = () => {
+                    if (acc.uid !== currentUser.uid) {
+                        switchToAccount(acc.uid);
+                        renderSettingsAccounts(); // обновить список после смены
+                    }
+                };
+                settingsAccountsList.appendChild(div);
+            });
         }
 
         settingsBtn.addEventListener('click', () => {
@@ -2776,11 +2845,22 @@
             settingsLastName.value = currentUser.lastName || '';
             settingsBirthday.value = currentUser.birthday || '';
             settingsAbout.value = currentUser.about || '';
+            renderSettingsAccounts();
+        });
+
+        settingsBackBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('show');
         });
 
         settingsCloseBtn.addEventListener('click', () => {
             settingsModal.classList.remove('show');
             localStorage.setItem('messenger_settings', JSON.stringify(userSettings));
+        });
+
+        settingsAddAccountBtn.addEventListener('click', () => {
+            if (confirm('Вы выйдете из текущего аккаунта, чтобы войти в новый или зарегистрироваться. Продолжить?')) {
+                switchAccount();
+            }
         });
 
         settingsSaveBtn.addEventListener('click', async () => {
@@ -2843,6 +2923,8 @@
                 if (typingListener) { typingListener.off(); typingListener = null; }
             }
             if (feedListener) { feedListener.off(); feedListener = null; }
+            if (notificationListener) { db.ref('messages').off('child_added', notificationListener); notificationListener = null; }
+            
             currentUser = { number: '', uid: '', avatar: null };
             mainScreen.style.display = 'none';
             chatScreen.style.display = 'none';
@@ -2917,7 +2999,12 @@
             }
         }, true);
 
-        console.log('✅ SAE Chat обновлён! Добавлены статусы и "печатает..."');
+        // ========== ЗАПУСК СЛУШАТЕЛЯ УВЕДОМЛЕНИЙ ==========
+        setTimeout(() => {
+            startNotificationListener();
+        }, 2000);
+
+        console.log('✅ SAE Chat обновлён! Добавлены уведомления, мультиаккаунт в настройках и кнопка "Назад" в профиле.');
     </script>
 </body>
 </html>
