@@ -2466,6 +2466,35 @@
             }
         });
 
+        // ========== ГЛОБАЛЬНАЯ РЕАКЦИЯ В ЧАТЕ ==========
+        // ВАЖНО: Это сработает для любых .photo-reaction, включая только что загруженные
+        document.addEventListener('click', async function(e) {
+            const reaction = e.target.closest('.photo-reaction');
+            if (reaction) {
+                e.stopPropagation();
+                const msgId = reaction.dataset.msgid;
+                if (!msgId || !currentChatId) return;
+                
+                const msgRef = db.ref('messages/' + currentChatId + '/' + msgId);
+                try {
+                    const snap = await msgRef.once('value');
+                    const data = snap.val();
+                    const newReaction = data && data.reaction === '❤️' ? '' : '❤️';
+                    await msgRef.update({ reaction: newReaction });
+                    // Мгновенно обновляем визуал
+                    if (newReaction) {
+                        reaction.textContent = '❤️';
+                        reaction.classList.add('liked');
+                    } else {
+                        reaction.textContent = '❤️';
+                        reaction.classList.remove('liked');
+                    }
+                } catch (err) {
+                    console.error('Ошибка реакции:', err);
+                }
+            }
+        });
+
         // ========== КОНТЕКСТНОЕ МЕНЮ ==========
         function showContextMenu(x, y, element) {
             contextTarget = {
@@ -2799,7 +2828,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с полным исправлением переключения чатов!');
+        console.log('✅ SAE Chat с реакциями в чате и ленте!');
     </script>
 </body>
 </html>
