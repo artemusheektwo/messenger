@@ -137,6 +137,18 @@
             cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; 
         }
         .main-btn:hover { background: var(--bg-glass-hover); transform: scale(1.05); }
+        
+        .main-btn .badge {
+            position: absolute; top: -4px; right: -4px;
+            background: #ff3b30; color: #fff;
+            border-radius: 50%; font-size: 11px; font-weight: 700;
+            min-width: 18px; height: 18px; line-height: 18px;
+            text-align: center; padding: 0 4px; box-sizing: border-box;
+            border: 2px solid #1a1a2e;
+            display: none;
+        }
+        .main-btn .badge.show { display: block; }
+        .main-btn { position: relative; }
 
         /* ====== КОНТЕЙНЕРЫ ====== */
         .tab-content { display: none; flex: 1; overflow-y: auto; padding-bottom: 80px; }
@@ -148,7 +160,7 @@
         #chatTab .chat-item { 
             display: flex; align-items: center; padding: 12px 16px; margin-bottom: 8px; 
             background: var(--bg-glass); backdrop-filter: blur(10px); border: 1px solid var(--border-glass); border-radius: 16px; 
-            cursor: pointer; transition: 0.3s; 
+            cursor: pointer; transition: 0.3s; position: relative; 
         }
         #chatTab .chat-item:hover { background: var(--bg-glass-hover); transform: translateX(4px); }
         #chatTab .chat-avatar { 
@@ -161,6 +173,15 @@
         #chatTab .chat-name { font-weight: 600; font-size: 16px; }
         #chatTab .chat-last { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
         #chatTab .chat-time { font-size: 11px; color: var(--text-muted); }
+
+        /* ====== НЕПРОЧИТАННОЕ В СПИСКЕ ЧАТОВ ====== */
+        .chat-item .unread-dot {
+            position: absolute; top: 12px; right: 12px;
+            width: 10px; height: 10px; background: #34c759;
+            border-radius: 50%; border: 2px solid #1a1a2e;
+            display: none;
+        }
+        .chat-item .unread-dot.show { display: block; }
 
         /* ====== ЛЕНТА (Вкладка) ====== */
         #feedTab { padding: 0 0 20px 0; }
@@ -1172,6 +1193,8 @@
         let notificationListener = null;
         let toastTimeout = null;
         let toastData = null;
+        let unreadMessages = {}; // Счетчик непрочитанных сообщений по чатам
+        let totalUnread = 0;
 
         const STATUSES = {
             'online': { emoji: '🟢', label: 'В сети' },
@@ -1868,7 +1891,7 @@
             }, 500);
         });
 
-        // ========== ЧАТЫ ==========
+        // ========== ЧАТЫ И СЧЕТЧИК УВЕДОМЛЕНИЙ ==========
         function startListeningChats() {
             db.ref('chats').on('value', snapshot => {
                 const data = snapshot.val();
@@ -1892,6 +1915,9 @@
                 const div = document.createElement('div');
                 div.className = 'chat-item';
                 const otherUser = chat.participants.find(p => p !== currentUser.uid);
+                
+                // Получаем количество непрочитанных для этого чата
+                const unreadCount = unreadMessages[chat.id] || 0;
                 
                 if (otherUser) {
                     db.ref('users/' + otherUser).once('value', (snap) => {
@@ -1917,12 +1943,54 @@
                         <div class="chat-last">${chat.lastMessage || 'Нет сообщений'}</div>
                     </div>
                     <div class="chat-time">${chat.lastTime ? timeAgo(chat.lastTime) : ''}</div>
+                    <div class="unread-dot ${unreadCount > 0 ? 'show' : ''}"></div>
                 `;
                 div.addEventListener('click', () => openChat(chat.id));
                 chatList.appendChild(div);
             });
+
+            // Обновляем общий счетчик на иконке
+            updateUnreadBadge();
         }
 
+        // ========== ЛОГИКА НЕПРОЧИТАННЫХ ==========
+        function updateUnreadBadge() {
+            const badge = chatTabBtn.querySelector('.badge');
+            if (!badge) return;
+            
+            totalUnread = 0;
+            Object.values(unreadMessages).forEach(count => {
+                totalUnread += count;
+            });
+
+            if (totalUnread > 0) {
+                badge.textContent = totalUnread > 99 ? '99+' : totalUnread;
+                badge.classList.add('show');
+                document.title = `(${totalUnread}) sae chat`;
+            } else {
+                badge.classList.remove('show');
+                document.title = 'sae chat';
+            }
+        }
+
+        function markChatAsRead(chatId) {
+            if (unreadMessages[chatId]) {
+                delete unreadMessages[chatId];
+                updateUnreadBadge();
+                renderChatList();
+            }
+        }
+
+        function addUnreadToChat(chatId) {
+            if (!unreadMessages[chatId]) {
+                unreadMessages[chatId] = 0;
+            }
+            unreadMessages[chatId]++;
+            updateUnreadBadge();
+            renderChatList();
+        }
+
+        // ========== ОТКРЫТИЕ ЧАТА ==========
         function openChat(chatId) {
             if (currentChatId === chatId && chatScreen.style.display === 'flex') return;
             
@@ -1969,6 +2037,9 @@
                 alert('Не удалось найти собеседника');
                 return;
             }
+            
+            // Сбрасываем счетчик для этого чата
+            markChatAsRead(chatId);
             
             currentChatUserUid = otherUser;
             chatTitle.textContent = 'Загрузка...';
@@ -2018,7 +2089,6 @@
                 typingListener = db.ref('typing/' + currentChatId).on('value', (snap) => {
                     const typingData = snap.val();
                     if (typingData && typingData[uid] === true) {
-                        // Показываем анимированную индикацию печатания
                         chatStatus.innerHTML = `<span class="typing-indicator">печатает<span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`;
                     } else {
                         db.ref('users/' + uid + '/status').once('value', (s) => {
@@ -2046,7 +2116,6 @@
             });
         }
 
-        // ========== ПРОЧИТАНО / НЕ ПРОЧИТАНО ==========
         function markMessagesAsSeen() {
             if (!currentChatId || !messages) return;
 
@@ -2055,7 +2124,6 @@
 
             Object.keys(messages).forEach(key => {
                 const msg = messages[key];
-                // Если сообщение не мое и поле seen отсутствует - помечаем как прочитанное
                 if (msg.sender !== currentUser.uid && !msg.seen) {
                     updates['messages/' + currentChatId + '/' + key + '/seen'] = true;
                     hasUpdates = true;
@@ -2121,7 +2189,6 @@
                     div.insertAdjacentHTML('beforeend', reactionsHtml);
                 }
                 
-                // Отображаем статусы прочитано/не прочитано
                 let statusText = '';
                 if (msg.sender === currentUser.uid) {
                     if (msg.seen) {
@@ -2179,15 +2246,14 @@
             messagesArea.scrollTop = messagesArea.scrollHeight;
         }
 
-        // ========== УВЕДОМЛЕНИЯ (ФОН) ==========
-                // ========== УВЕДОМЛЕНИЯ (ФОН) - ИСПРАВЛЕННЫЙ ==========
+        // ========== УВЕДОМЛЕНИЯ (ФОН) - ИСПРАВЛЕННЫЙ ==========
         function startNotificationListener() {
             if (notificationListener) {
                 db.ref('messages').off('child_added', notificationListener);
                 notificationListener = null;
             }
 
-            // Получаем время последнего прочитанного уведомления, чтобы не спамить
+            // Получаем ID последнего показанного уведомления из памяти, чтобы не спамить
             const lastNotifiedKey = localStorage.getItem('last_notified_' + currentUser.uid) || '0';
 
             notificationListener = db.ref('messages').on('child_added', (snapshot) => {
@@ -2203,9 +2269,13 @@
                     const lastKey = keys[keys.length - 1];
                     const msg = allMsgs[lastKey];
 
-                    // Проверяем: если это не чужое сообщение или оно уже было показано — пропускаем
                     if (!msg || msg.sender === currentUser.uid) return;
+                    
+                    // Проверяем, показывали ли мы уже это уведомление
                     if (lastKey <= lastNotifiedKey) return;
+
+                    // Добавляем в счетчик непрочитанных
+                    addUnreadToChat(chatId);
 
                     db.ref('users/' + msg.sender).once('value', (userSnap) => {
                         const userData = userSnap.val();
@@ -2214,10 +2284,9 @@
                             const text = msg.text || '📷 Фото';
                             const avatarHtml = getAvatarHtml(userData.avatar);
                             
-                            // Показываем внутренний тост
                             showToast(avatarHtml, name, text, chatId);
                             
-                            // Запоминаем, что это сообщение мы уже показали
+                            // Запоминаем ID этого сообщения, чтобы в следующий раз не показывать
                             localStorage.setItem('last_notified_' + currentUser.uid, lastKey);
                         }
                     });
@@ -3114,12 +3183,7 @@
             }
         }, true);
 
-        // ========== ЗАПУСК СЛУШАТЕЛЯ УВЕДОМЛЕНИЙ ==========
-        setTimeout(() => {
-            startNotificationListener();
-        }, 2000);
-
-        console.log('✅ SAE Chat обновлён! Добавлены статусы "Отправлено/Прочитано", анимация печатания и внутренние уведомления.');
+        console.log('✅ SAE Chat обновлён! Счетчик уведомлений, точки в списке чатов и фикс повторных уведомлений.');
     </script>
 </body>
 </html>
