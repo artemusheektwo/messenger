@@ -9,7 +9,7 @@
         body { background: #0f0f0f; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
         
         :root {
-            --accent-color: #8a5cf5; /* Фиолетовый по умолчанию! */
+            --accent-color: #8a5cf5;
             --bg-glass: rgba(255, 255, 255, 0.08);
             --bg-glass-hover: rgba(255, 255, 255, 0.15);
             --border-glass: rgba(255, 255, 255, 0.1);
@@ -442,7 +442,7 @@
         .message.other { align-self: flex-start; background: var(--bg-glass); backdrop-filter: blur(10px); border: 1px solid var(--border-glass); color: #fff; border-bottom-left-radius: 4px; }
         .message .msg-time { font-size: 10px; opacity: 0.6; margin-top: 4px; text-align: right; }
         
-        /* Блок ответа (Reply) в стиле Telegram (исправлен) */
+        /* Блок ответа (Reply) в стиле Telegram */
         .message .reply-block {
             display: block; padding: 4px 8px 4px 10px; margin-bottom: 6px;
             border-left: 3px solid var(--accent-color);
@@ -1344,12 +1344,21 @@
         }
 
         function switchToAccount(uid) {
+            // Очистка старого чата
             if (currentChatId) {
                 db.ref('messages/' + currentChatId).off();
                 if (statusListener) { statusListener.off(); statusListener = null; }
                 if (typingListener) { typingListener.off(); typingListener = null; }
             }
             if (feedListener) { feedListener.off(); feedListener = null; }
+            
+            currentChatId = null;
+            currentChatUserUid = null;
+            chatScreen.style.display = 'none';
+            mainScreen.style.display = 'flex';
+            replyBar.classList.remove('show');
+            replyTarget = null;
+            pendingImageData = null;
             
             db.ref('users/' + uid).once('value', (snap) => {
                 const data = snap.val();
@@ -1359,13 +1368,6 @@
                     if (data.theme) {
                         document.documentElement.style.setProperty('--accent-color', data.theme);
                     }
-                    mainScreen.style.display = 'flex';
-                    chatScreen.style.display = 'none';
-                    currentChatId = null;
-                    currentChatUserUid = null;
-                    hideContextMenu();
-                    profileModal.classList.remove('show');
-                    settingsModal.classList.remove('show');
                     startListeningChats();
                     renderAccountSwitcher();
                     switchTab('chatTab');
@@ -1788,9 +1790,23 @@
         function openChat(chatId) {
             if (currentChatId === chatId && chatScreen.style.display === 'flex') return;
             
-            if (statusListener) { statusListener.off(); statusListener = null; }
-            if (typingListener) { typingListener.off(); typingListener = null; }
+            // ЖЁСТКАЯ ОЧИСТКА СТАРЫХ ПОДПИСОК
+            if (currentChatId) {
+                db.ref('messages/' + currentChatId).off();
+                if (statusListener && typeof statusListener.off === 'function') {
+                    statusListener.off();
+                    statusListener = null;
+                }
+                if (typingListener && typeof typingListener.off === 'function') {
+                    typingListener.off();
+                    typingListener = null;
+                }
+                replyBar.classList.remove('show');
+                replyTarget = null;
+                pendingImageData = null;
+            }
 
+            // ОБНОВЛЯЕМ ТЕКУЩИЙ ЧАТ
             currentChatId = chatId;
             
             // ЖЁСТКАЯ СИНХРОНИЗАЦИЯ: ЖДЁМ ЗАГРУЗКИ ЧАТОВ
@@ -1801,7 +1817,7 @@
                     if (chats && chats.length > 0) {
                         clearInterval(interval);
                         openChat(chatId);
-                    } else if (waitCount > 10) { // 3 секунды
+                    } else if (waitCount > 10) {
                         clearInterval(interval);
                         alert('Не удалось загрузить чаты. Обновите страницу.');
                     }
@@ -1883,7 +1899,15 @@
         }
 
         function loadMessages(chatId) {
+            // Если уже есть подписка на этот чат — не создаём новую
+            if (currentChatId !== chatId) return;
+
             db.ref('messages/' + chatId).on('value', snapshot => {
+                // Дополнительная проверка: если пользователь уже вышел из чата — игнорируем
+                if (currentChatId !== chatId) {
+                    snapshot.ref.off(); // отписываемся сами
+                    return;
+                }
                 const data = snapshot.val();
                 messages = data || {};
                 renderMessages();
@@ -1920,7 +1944,7 @@
                     </div>`;
                 }
 
-                // Блок ответа (Reply) в стиле Telegram (добавляем перед контентом)
+                // Блок ответа (Reply) в стиле Telegram
                 if (msg.replyTo) {
                     const replyHtml = `
                         <div class="reply-block">
@@ -1928,11 +1952,9 @@
                             <span class="reply-text">${msg.replyText || '...'}</span>
                         </div>
                     `;
-                    // Вставляем перед контентом, не перезаписывая его
                     div.insertAdjacentHTML('afterbegin', replyHtml);
                 }
                 
-                // Добавляем контент и время
                 div.innerHTML += `
                     <div>${content}</div>
                     <div class="msg-time">${msg.time ? timeAgo(msg.time) : ''}</div>
@@ -2344,29 +2366,32 @@
 
         // ========== НАЗАД ==========
         function goBack() {
-            try {
-                if (currentChatId) {
-                    db.ref('messages/' + currentChatId).off();
-                    if (statusListener && typeof statusListener.off === 'function') { 
-                        statusListener.off(); 
-                        statusListener = null; 
-                    }
-                    if (typingListener && typeof typingListener.off === 'function') { 
-                        typingListener.off(); 
-                        typingListener = null; 
-                    }
+            // Сначала сбрасываем ID, чтобы не было повторных подписок
+            const oldChatId = currentChatId;
+            currentChatId = null;
+            currentChatUserUid = null;
+
+            if (oldChatId) {
+                db.ref('messages/' + oldChatId).off();
+                if (statusListener && typeof statusListener.off === 'function') {
+                    statusListener.off();
+                    statusListener = null;
                 }
-            } catch (e) {}
+                if (typingListener && typeof typingListener.off === 'function') {
+                    typingListener.off();
+                    typingListener = null;
+                }
+            }
 
             chatScreen.style.display = 'none';
             mainScreen.style.display = 'flex';
-            currentChatId = null;
-            currentChatUserUid = null;
+            
             hideContextMenu();
             profileModal.classList.remove('show');
             settingsModal.classList.remove('show');
             replyBar.classList.remove('show');
             replyTarget = null;
+            pendingImageData = null;
             
             const activeTab = document.querySelector('.tab-content.active');
             if (activeTab) {
@@ -2774,7 +2799,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с починенным Reply, цветом и багом чата!');
+        console.log('✅ SAE Chat с полным исправлением переключения чатов!');
     </script>
 </body>
 </html>
