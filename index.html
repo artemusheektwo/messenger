@@ -2761,6 +2761,53 @@
             return days + 'д';
         }
 
+                // ========== НАЗАД ==========
+        function goBack() {
+            // Сначала сбрасываем ID, чтобы не было повторных подписок
+            const oldChatId = currentChatId;
+            currentChatId = null;
+            currentChatUserUid = null;
+
+            if (oldChatId) {
+                db.ref('messages/' + oldChatId).off();
+                if (statusListener && typeof statusListener.off === 'function') {
+                    statusListener.off();
+                    statusListener = null;
+                }
+                if (typingListener && typeof typingListener.off === 'function') {
+                    typingListener.off();
+                    typingListener = null;
+                }
+            }
+
+            chatScreen.style.display = 'none';
+            mainScreen.style.display = 'flex';
+            
+            hideContextMenu();
+            profileModal.classList.remove('show');
+            settingsModal.classList.remove('show');
+            replyBar.classList.remove('show');
+            replyTarget = null;
+            pendingImageData = null;
+            
+            const activeTab = document.querySelector('.tab-content.active');
+            if (activeTab) {
+                if (activeTab.id === 'chatTab') renderChatList();
+                if (activeTab.id === 'feedTab') renderFeed();
+            }
+        }
+
+        // Глобальный перехватчик кликов на кнопку Назад (работает даже сквозь модалки)
+        window.addEventListener('click', function(e) {
+            const backBtn = e.target.closest('#chatBackBtn');
+            if (backBtn) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                console.log('🔙 Нажата кнопка Назад через глобальный перехват!');
+                goBack();
+            }
+        }, true);
+
         console.log('✅ SAE Chat с реакциями как в Telegram!');
     </script>
 </body>
