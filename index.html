@@ -487,6 +487,16 @@
             color: #ff6b6b;
         }
 
+        /* Реакция на обычные текстовые сообщения */
+        .message .text-reaction {
+            display: inline-block; margin-top: 4px; font-size: 14px;
+            cursor: pointer; transition: 0.2s; user-select: none;
+            padding: 2px 8px; border-radius: 20px;
+            background: rgba(255,255,255,0.05);
+        }
+        .message .text-reaction.liked { color: #ff6b6b; background: rgba(255,255,255,0.1); }
+        .message .text-reaction:hover { transform: scale(1.1); }
+
         @keyframes fadeInMsg { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         /* ====== КОНТЕКСТНОЕ МЕНЮ ====== */
@@ -1954,6 +1964,25 @@
                     `;
                     div.insertAdjacentHTML('afterbegin', replyHtml);
                 }
+
+                // Реакция для текстовых сообщений (если есть)
+                if (!msg.image && msg.reaction) {
+                    // Если есть реакция, показываем её под текстом
+                    const reactionHtml = `
+                        <div class="text-reaction ${msg.reaction === '❤️' ? 'liked' : ''}" data-msgid="${key}">
+                            ❤️
+                        </div>
+                    `;
+                    div.insertAdjacentHTML('beforeend', reactionHtml);
+                } else if (!msg.image && !msg.reaction) {
+                    // Если реакции нет, просто добавляем пустой кликабельный блок (для удобства)
+                    const reactionHtml = `
+                        <div class="text-reaction" data-msgid="${key}">
+                            ❤️
+                        </div>
+                    `;
+                    div.insertAdjacentHTML('beforeend', reactionHtml);
+                }
                 
                 div.innerHTML += `
                     <div>${content}</div>
@@ -2364,115 +2393,13 @@
             replyTarget = null;
         });
 
-        // ========== НАЗАД ==========
-        function goBack() {
-            // Сначала сбрасываем ID, чтобы не было повторных подписок
-            const oldChatId = currentChatId;
-            currentChatId = null;
-            currentChatUserUid = null;
-
-            if (oldChatId) {
-                db.ref('messages/' + oldChatId).off();
-                if (statusListener && typeof statusListener.off === 'function') {
-                    statusListener.off();
-                    statusListener = null;
-                }
-                if (typingListener && typeof typingListener.off === 'function') {
-                    typingListener.off();
-                    typingListener = null;
-                }
-            }
-
-            chatScreen.style.display = 'none';
-            mainScreen.style.display = 'flex';
-            
-            hideContextMenu();
-            profileModal.classList.remove('show');
-            settingsModal.classList.remove('show');
-            replyBar.classList.remove('show');
-            replyTarget = null;
-            pendingImageData = null;
-            
-            const activeTab = document.querySelector('.tab-content.active');
-            if (activeTab) {
-                if (activeTab.id === 'chatTab') renderChatList();
-                if (activeTab.id === 'feedTab') renderFeed();
-            }
-        }
-
-        window.addEventListener('click', function(e) {
-            const backBtn = e.target.closest('#chatBackBtn');
-            if (backBtn) {
-                e.stopImmediatePropagation();
-                e.preventDefault();
-                goBack();
-            }
-        }, true);
-
-        // ========== ВСТРОЕННЫЙ БРАУЗЕР ==========
-        function openInBrowser(url) {
-            browserTitle.textContent = url;
-            browserImage.style.display = 'none';
-            browserIframe.style.display = 'none';
-            browserError.style.display = 'none';
-            
-            if (url.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i)) {
-                browserImage.src = url;
-                browserImage.style.display = 'block';
-                browserIframe.src = '';
-                browserViewer.classList.add('show');
-            } else {
-                browserIframe.src = url;
-                browserIframe.style.display = 'block';
-                browserImage.src = '';
-                browserViewer.classList.add('show');
-                
-                setTimeout(() => {
-                    try {
-                        const iframe = browserIframe;
-                        if (iframe.contentDocument && iframe.contentDocument.body.innerHTML === '') {
-                            browserIframe.style.display = 'none';
-                            browserError.style.display = 'block';
-                        }
-                    } catch (e) {
-                        browserIframe.style.display = 'none';
-                        browserError.style.display = 'block';
-                    }
-                }, 3000);
-            }
-        }
-
-        browserCloseBtn.addEventListener('click', () => {
-            browserViewer.classList.remove('show');
-            browserImage.src = '';
-            browserIframe.src = '';
-            browserError.style.display = 'none';
-        });
-        
-        browserViewer.addEventListener('click', (e) => {
-            if (e.target === browserViewer) {
-                browserViewer.classList.remove('show');
-                browserImage.src = '';
-                browserIframe.src = '';
-                browserError.style.display = 'none';
-            }
-        });
-        
-        browserCopyLink.addEventListener('click', () => {
-            const url = browserTitle.textContent;
-            if (url) {
-                navigator.clipboard.writeText(url);
-                alert('🔗 Ссылка скопирована!');
-            }
-        });
-
-        // ========== ГЛОБАЛЬНАЯ РЕАКЦИЯ В ЧАТЕ ==========
-        // ВАЖНО: Это сработает для любых .photo-reaction, включая только что загруженные
+        // ========== ГЛОБАЛЬНАЯ РЕАКЦИЯ В ЧАТЕ (ИСПРАВЛЕННАЯ) ==========
         document.addEventListener('click', async function(e) {
-            const reaction = e.target.closest('.photo-reaction');
-            if (reaction) {
+            // Реакция на фото
+            const photoReaction = e.target.closest('.photo-reaction');
+            if (photoReaction) {
                 e.stopPropagation();
-                const msgId = reaction.dataset.msgid;
+                const msgId = photoReaction.dataset.msgid;
                 if (!msgId || !currentChatId) return;
                 
                 const msgRef = db.ref('messages/' + currentChatId + '/' + msgId);
@@ -2483,11 +2410,36 @@
                     await msgRef.update({ reaction: newReaction });
                     // Мгновенно обновляем визуал
                     if (newReaction) {
-                        reaction.textContent = '❤️';
-                        reaction.classList.add('liked');
+                        photoReaction.textContent = '❤️';
+                        photoReaction.classList.add('liked');
                     } else {
-                        reaction.textContent = '❤️';
-                        reaction.classList.remove('liked');
+                        photoReaction.textContent = '❤️';
+                        photoReaction.classList.remove('liked');
+                    }
+                } catch (err) {
+                    console.error('Ошибка реакции:', err);
+                }
+                return;
+            }
+
+            // Реакция на текстовые сообщения
+            const textReaction = e.target.closest('.text-reaction');
+            if (textReaction) {
+                e.stopPropagation();
+                const msgId = textReaction.dataset.msgid;
+                if (!msgId || !currentChatId) return;
+                
+                const msgRef = db.ref('messages/' + currentChatId + '/' + msgId);
+                try {
+                    const snap = await msgRef.once('value');
+                    const data = snap.val();
+                    const newReaction = data && data.reaction === '❤️' ? '' : '❤️';
+                    await msgRef.update({ reaction: newReaction });
+                    // Мгновенно обновляем визуал
+                    if (newReaction) {
+                        textReaction.classList.add('liked');
+                    } else {
+                        textReaction.classList.remove('liked');
                     }
                 } catch (err) {
                     console.error('Ошибка реакции:', err);
@@ -2828,7 +2780,7 @@
             return days + 'д';
         }
 
-        console.log('✅ SAE Chat с реакциями в чате и ленте!');
+        console.log('✅ SAE Chat с реакциями на фото и текст!');
     </script>
 </body>
 </html>
