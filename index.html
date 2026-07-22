@@ -652,6 +652,33 @@
         }
         .settings-add-account:hover { background: var(--bg-glass-hover); color: #fff; border-color: var(--accent-color); }
 
+        /* ====== ВНУТРЕННИЕ УВЕДОМЛЕНИЯ (ТОСТЫ) ====== */
+        #notificationToast {
+            position: fixed; top: 20px; right: 20px; z-index: 99999;
+            width: 320px; max-width: 90%;
+            background: var(--bg-glass); backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass); border-radius: 16px;
+            padding: 14px 16px; box-shadow: var(--shadow-glass);
+            display: none; align-items: center; gap: 12px;
+            cursor: pointer; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateX(120%);
+            opacity: 0;
+        }
+        #notificationToast.show { display: flex; transform: translateX(0); opacity: 1; }
+        #notificationToast .nt-avatar {
+            width: 44px; height: 44px; border-radius: 50%; overflow: hidden;
+            flex-shrink: 0; background: rgba(255,255,255,0.1);
+            display: flex; align-items: center; justify-content: center; font-size: 22px;
+        }
+        #notificationToast .nt-info { flex: 1; overflow: hidden; }
+        #notificationToast .nt-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #notificationToast .nt-text { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #notificationToast .nt-close {
+            background: none; border: none; color: var(--text-muted); font-size: 18px;
+            cursor: pointer; padding: 4px; transition: 0.2s;
+        }
+        #notificationToast .nt-close:hover { color: #fff; }
+
         /* ====== МОДАЛКА ПОЗДРАВЛЕНИЯ (КОНФЕТТИ) ====== */
         #congratsModal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -717,6 +744,16 @@
 <body>
 <div class="app" id="appContainer">
     <div id="app-bg"></div>
+
+    <!-- ВНУТРЕННЕЕ УВЕДОМЛЕНИЕ -->
+    <div id="notificationToast" onclick="handleToastClick()">
+        <div class="nt-avatar" id="ntAvatar">👤</div>
+        <div class="nt-info">
+            <div class="nt-name" id="ntName">Имя</div>
+            <div class="nt-text" id="ntText">Сообщение...</div>
+        </div>
+        <button class="nt-close" onclick="event.stopPropagation(); closeToast();">✕</button>
+    </div>
 
     <!-- СТАРТ -->
     <div id="startScreen">
@@ -1110,6 +1147,8 @@
         let accounts = [];
         let replyTarget = null;
         let notificationListener = null;
+        let toastTimeout = null;
+        let toastData = null;
 
         const STATUSES = {
             'online': { emoji: '🟢', label: 'В сети' },
@@ -1253,6 +1292,11 @@
         const settingsAccountsList = document.getElementById('settingsAccountsList');
         const settingsAddAccountBtn = document.getElementById('settingsAddAccountBtn');
 
+        const notificationToast = document.getElementById('notificationToast');
+        const ntAvatar = document.getElementById('ntAvatar');
+        const ntName = document.getElementById('ntName');
+        const ntText = document.getElementById('ntText');
+
         const congratsModal = document.getElementById('congratsModal');
         const congratsNumber = document.getElementById('congratsNumber');
         const congratsBtn = document.getElementById('congratsBtn');
@@ -1366,47 +1410,47 @@
             return contactName || null;
         }
 
-        // ========== УВЕДОМЛЕНИЯ ==========
-        async function requestNotificationPermission() {
-            if (!('Notification' in window)) {
-                console.log('Этот браузер не поддерживает уведомления');
-                return;
-            }
-            if (Notification.permission === 'granted') {
-                return;
-            }
-            if (Notification.permission !== 'denied') {
-                await Notification.requestPermission();
-            }
+        // ========== ВНУТРЕННИЕ УВЕДОМЛЕНИЯ (ТОСТЫ) ==========
+        function showToast(avatarHtml, name, text, chatId) {
+            toastData = chatId;
+            ntAvatar.innerHTML = avatarHtml;
+            ntName.textContent = name;
+            ntText.textContent = text;
+            
+            // Сброс таймера и анимации
+            clearTimeout(toastTimeout);
+            notificationToast.classList.remove('show');
+            
+            setTimeout(() => {
+                notificationToast.classList.add('show');
+            }, 100);
+
+            toastTimeout = setTimeout(() => {
+                closeToast();
+            }, 4000);
         }
 
-        function sendBrowserNotification(title, body) {
-            if (!('Notification' in window)) return;
-            if (Notification.permission === 'granted') {
-                new Notification(title, {
-                    body: body,
-                    icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png' // Замените на свою иконку при желании
-                });
-            }
+        function closeToast() {
+            notificationToast.classList.remove('show');
+            toastData = null;
+            clearTimeout(toastTimeout);
         }
 
-        // ========== КОНФЕТТИ ==========
-        function fireConfetti() {
-            confettiContainer.innerHTML = '';
-            const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a29bfe', '#fd79a8', '#00b894', '#e17055', '#8a5cf5', '#ff9ff3', '#54a0ff'];
-            for (let i = 0; i < 60; i++) {
-                const piece = document.createElement('div');
-                piece.className = 'confetti-piece';
-                piece.style.left = Math.random() * 100 + '%';
-                piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-                piece.style.width = (Math.random() * 8 + 6) + 'px';
-                piece.style.height = (Math.random() * 8 + 6) + 'px';
-                piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-                piece.style.animationDuration = (Math.random() * 3 + 2) + 's';
-                piece.style.animationDelay = (Math.random() * 2) + 's';
-                confettiContainer.appendChild(piece);
+        window.handleToastClick = function() {
+            if (toastData) {
+                // Ищем чат и открываем его
+                const chat = chats.find(c => c.id === toastData);
+                if (chat) {
+                    closeToast();
+                    openChat(toastData);
+                } else {
+                    closeToast();
+                    alert('Чат не найден, возможно он был удалён.');
+                }
+            } else {
+                closeToast();
             }
-        }
+        };
 
         // ========== УПРАВЛЕНИЕ АККАУНТАМИ ==========
         function saveAccountToList(user) {
@@ -1438,13 +1482,13 @@
         }
 
         function switchToAccount(uid) {
-            // Очистка
             if (currentChatId) {
                 db.ref('messages/' + currentChatId).off();
                 if (statusListener) { statusListener.off(); statusListener = null; }
                 if (typingListener) { typingListener.off(); typingListener = null; }
             }
             if (feedListener) { feedListener.off(); feedListener = null; }
+            if (notificationListener) { db.ref('messages').off('child_added', notificationListener); notificationListener = null; }
             
             currentChatId = null;
             currentChatUserUid = null;
@@ -1465,6 +1509,7 @@
                     startListeningChats();
                     switchTab('chatTab');
                     initSupport();
+                    startNotificationListener();
                     if (settingsModal.classList.contains('show')) {
                         settingsModal.classList.remove('show');
                     }
@@ -1669,6 +1714,7 @@
             mainScreen.style.display = 'flex';
             startListeningChats();
             switchTab('chatTab');
+            startNotificationListener();
         });
 
         // ========== ВХОД ==========
@@ -1695,13 +1741,14 @@
                 startListeningChats();
                 switchTab('chatTab');
                 initSupport();
+                startNotificationListener();
             } else {
                 alert('Неверный номер или пароль');
             }
         });
 
         // ========== АВТОВХОД ==========
-        window.addEventListener('load', async () => {
+        window.addEventListener('load', () => {
             const savedUser = localStorage.getItem('messenger_user');
             const savedSettings = localStorage.getItem('messenger_settings');
             
@@ -1709,9 +1756,6 @@
                 userSettings = JSON.parse(savedSettings);
                 applySettings();
             }
-
-            // Запрос разрешения на уведомления
-            await requestNotificationPermission();
 
             if (savedUser) {
                 currentUser = JSON.parse(savedUser);
@@ -1726,6 +1770,7 @@
                     switchTab('chatTab');
                     initSupport();
                     loadAccounts();
+                    setTimeout(() => startNotificationListener(), 1000);
                 }
             }
         });
@@ -2084,26 +2129,27 @@
 
             notificationListener = db.ref('messages').on('child_added', (snapshot) => {
                 const chatId = snapshot.key;
-                if (chatId === currentChatId) return; // Не уведомляем, если мы уже в этом чате
+                if (chatId === currentChatId) return; // Не показываем, если мы уже в этом чате
 
                 snapshot.ref.once('value', (msgSnap) => {
                     const allMsgs = msgSnap.val();
                     if (!allMsgs) return;
                     
-                    // Берем последнее сообщение
                     const keys = Object.keys(allMsgs);
                     const lastKey = keys[keys.length - 1];
                     const msg = allMsgs[lastKey];
 
                     if (!msg || msg.sender === currentUser.uid) return;
 
-                    // Определяем отправителя
                     db.ref('users/' + msg.sender).once('value', (userSnap) => {
                         const userData = userSnap.val();
                         if (userData) {
                             const name = `${userData.firstName} ${userData.lastName || ''}`;
                             const text = msg.text || '📷 Фото';
-                            sendBrowserNotification(name, text);
+                            const avatarHtml = getAvatarHtml(userData.avatar);
+                            
+                            // Показываем внутренний тост
+                            showToast(avatarHtml, name, text, chatId);
                         }
                     });
                 });
@@ -3004,7 +3050,7 @@
             startNotificationListener();
         }, 2000);
 
-        console.log('✅ SAE Chat обновлён! Добавлены уведомления, мультиаккаунт в настройках и кнопка "Назад" в профиле.');
+        console.log('✅ SAE Chat обновлён! Внутренние уведомления, список аккаунтов в настройках и кнопки "Назад".');
     </script>
 </body>
 </html>
