@@ -585,10 +585,44 @@
         }
         .profile-close:hover { background: var(--bg-glass-hover); }
         
+        /* ====== МОДАЛКА ВЫБОРА СТАТУСА ====== */
+        #statusModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2001 !important;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+            justify-content: center; align-items: center;
+            pointer-events: none;
+        }
+        #statusModal.show { display: flex; pointer-events: auto; }
+        .status-content {
+            width: 90%; max-width: 400px; padding: 24px;
+            background: var(--bg-glass); backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass); border-radius: 20px;
+            box-shadow: var(--shadow-glass); 
+            pointer-events: auto;
+            max-height: 80vh; overflow-y: auto;
+        }
+        .status-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 16px; }
+        .status-option {
+            display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+            margin-bottom: 8px; border-radius: 12px; cursor: pointer; transition: 0.2s;
+            border: 1px solid transparent;
+        }
+        .status-option:hover { background: var(--bg-glass-hover); }
+        .status-option.selected { border-color: var(--accent-color); background: rgba(138, 92, 245, 0.1); }
+        .status-option .status-emoji { font-size: 24px; }
+        .status-option .status-label { font-size: 16px; font-weight: 500; flex: 1; }
+        .status-close {
+            width: 100%; padding: 12px; border-radius: 50px; border: none;
+            background: var(--bg-glass); border: 1px solid var(--border-glass);
+            color: #fff; font-size: 16px; cursor: pointer; transition: 0.3s; margin-top: 8px;
+        }
+        .status-close:hover { background: var(--bg-glass-hover); }
+
         /* ====== МОДАЛКА НАСТРОЕК ====== */
         #settingsModal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 2001 !important;
+            z-index: 2002 !important;
             background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
             justify-content: center; align-items: center;
             pointer-events: none;
@@ -957,7 +991,7 @@
             <div class="profile-name" id="profileModalName">Имя</div>
             <div class="profile-number" id="profileModalNumber">Номер: 00000000</div>
             <div class="profile-info">
-                <div class="row"><span class="label">Статус</span><span class="value" id="profileModalStatus">онлайн</span></div>
+                <div class="row"><span class="label">Статус</span><span class="value" id="profileModalStatus">🟢 В сети</span></div>
                 <div class="row"><span class="label">О себе</span><span class="value" id="profileModalAbout">—</span></div>
                 <div class="row"><span class="label">Возраст</span><span class="value" id="profileModalAge">—</span></div>
                 <div class="row"><span class="label">Дата рождения</span><span class="value" id="profileModalBirthday">—</span></div>
@@ -966,6 +1000,15 @@
                 <!-- Генерируется динамически -->
             </div>
             <button class="profile-close" id="profileCloseBtn">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА ВЫБОРА СТАТУСА -->
+    <div id="statusModal">
+        <div class="status-content">
+            <div class="status-title">🟢 Выберите статус</div>
+            <div id="statusList"></div>
+            <button class="status-close" id="statusCloseBtn">Закрыть</button>
         </div>
     </div>
 
@@ -1044,7 +1087,7 @@
         // ========== IMGBB ==========
         const IMGBB_API_KEY = '5f577dda10160d0afd0e1ad79d65ad73';
 
-        // ========== ПЕРЕМЕННЫЕ ==========
+        // ========== ПЕРЕМЕННЫЕ И СТАТУСЫ ==========
         let currentUser = { number: '', uid: '', avatar: null, firstName: '', lastName: '', age: '', birthday: '', about: '' };
         let isLoginMode = true;
         let currentChatId = null;
@@ -1060,7 +1103,18 @@
         let typingListener = null;
         let feedListener = null;
         let accounts = [];
-        let replyTarget = null; // { msgId, text, author }
+        let replyTarget = null;
+
+        // Список статусов
+        const STATUSES = {
+            'online': { emoji: '🟢', label: 'В сети' },
+            'away': { emoji: '🟡', label: 'Отошёл' },
+            'busy': { emoji: '🔴', label: 'Занят' },
+            'dnd': { emoji: '⛔', label: 'Не беспокоить' },
+            'work': { emoji: '💼', label: 'На работе' },
+            'travel': { emoji: '🚗', label: 'В пути' },
+            'offline': { emoji: '⚫', label: 'Не в сети' }
+        };
 
         // ========== DOM ==========
         const startBtn = document.getElementById('startBtn');
@@ -1175,6 +1229,10 @@
         const profileModalBirthday = document.getElementById('profileModalBirthday');
         const profileActions = document.getElementById('profileActions');
         const profileCloseBtn = document.getElementById('profileCloseBtn');
+
+        const statusModal = document.getElementById('statusModal');
+        const statusList = document.getElementById('statusList');
+        const statusCloseBtn = document.getElementById('statusCloseBtn');
 
         const settingsModal = document.getElementById('settingsModal');
         const settingsCloseBtn = document.getElementById('settingsCloseBtn');
@@ -1344,7 +1402,6 @@
         }
 
         function switchToAccount(uid) {
-            // Очистка старого чата
             if (currentChatId) {
                 db.ref('messages/' + currentChatId).off();
                 if (statusListener) { statusListener.off(); statusListener = null; }
@@ -1790,7 +1847,6 @@
         function openChat(chatId) {
             if (currentChatId === chatId && chatScreen.style.display === 'flex') return;
             
-            // ЖЁСТКАЯ ОЧИСТКА СТАРЫХ ПОДПИСОК
             if (currentChatId) {
                 db.ref('messages/' + currentChatId).off();
                 if (statusListener && typeof statusListener.off === 'function') {
@@ -1806,10 +1862,8 @@
                 pendingImageData = null;
             }
 
-            // ОБНОВЛЯЕМ ТЕКУЩИЙ ЧАТ
             currentChatId = chatId;
             
-            // ЖЁСТКАЯ СИНХРОНИЗАЦИЯ: ЖДЁМ ЗАГРУЗКИ ЧАТОВ
             if (!chats || chats.length === 0) {
                 let waitCount = 0;
                 const interval = setInterval(() => {
@@ -1875,10 +1929,9 @@
 
             if (statusListener) statusListener.off();
             statusListener = db.ref('users/' + uid + '/status').on('value', (snap) => {
-                const status = snap.val();
-                if (status === 'online') chatStatus.textContent = 'онлайн';
-                else if (status === 'offline') chatStatus.textContent = 'не в сети';
-                else chatStatus.textContent = status || 'не в сети';
+                const statusKey = snap.val() || 'offline';
+                const statusData = STATUSES[statusKey] || STATUSES['offline'];
+                chatStatus.textContent = `${statusData.emoji} ${statusData.label}`;
             });
 
             if (typingListener) typingListener.off();
@@ -1886,26 +1939,25 @@
                 typingListener = db.ref('typing/' + currentChatId).on('value', (snap) => {
                     const typingData = snap.val();
                     if (typingData && typingData[uid] === true) {
-                        chatStatus.textContent = 'печатает...';
+                        chatStatus.textContent = '✍️ печатает...';
                     } else {
-                        setTimeout(() => {
-                            if (chatStatus.textContent === 'печатает...') {
-                                chatStatus.textContent = 'онлайн';
-                            }
-                        }, 1000);
+                        // Возвращаем статус, если перестал печатать
+                        db.ref('users/' + uid + '/status').once('value', (s) => {
+                            const sk = s.val() || 'offline';
+                            const sd = STATUSES[sk] || STATUSES['offline'];
+                            chatStatus.textContent = `${sd.emoji} ${sd.label}`;
+                        });
                     }
                 });
             }
         }
 
         function loadMessages(chatId) {
-            // Если уже есть подписка на этот чат — не создаём новую
             if (currentChatId !== chatId) return;
 
             db.ref('messages/' + chatId).on('value', snapshot => {
-                // Дополнительная проверка: если пользователь уже вышел из чата — игнорируем
                 if (currentChatId !== chatId) {
-                    snapshot.ref.off(); // отписываемся сами
+                    snapshot.ref.off();
                     return;
                 }
                 const data = snapshot.val();
@@ -1941,7 +1993,6 @@
                     </div>`;
                 }
 
-                // Блок ответа (Reply) в стиле Telegram
                 if (msg.replyTo) {
                     const replyHtml = `
                         <div class="reply-block">
@@ -1952,29 +2003,23 @@
                     div.insertAdjacentHTML('afterbegin', replyHtml);
                 }
 
-                // Реакции в виде аватарок (Telegram style)
                 let reactionsHtml = '';
                 if (msg.reactions) {
                     const reactionKeys = Object.keys(msg.reactions);
                     if (reactionKeys.length > 0) {
                         reactionsHtml = `<div class="reactions">`;
                         reactionKeys.forEach(rUid => {
-                            // Пытаемся получить аватарку
-                            // В данном примере используем заглушку, так как у нас нет данных пользователей в сообщении
-                            // В реальном приложении нужно загрузить аватарку по rUid
                             reactionsHtml += `<div class="reaction-avatar" title="${rUid}">❤️</div>`;
                         });
                         reactionsHtml += `</div>`;
                     }
                 }
                 
-                // Вставляем контент
                 div.insertAdjacentHTML('beforeend', content);
                 if (reactionsHtml) {
                     div.insertAdjacentHTML('beforeend', reactionsHtml);
                 }
                 
-                // Время
                 div.insertAdjacentHTML('beforeend', `<div class="msg-time">${msg.time ? timeAgo(msg.time) : ''}</div>`);
                 
                 div.dataset.msgId = key;
@@ -2198,6 +2243,43 @@
             createPostPendingImage = null;
         });
 
+        // ========== ВЫБОР СТАТУСА ==========
+        function renderStatusList() {
+            statusList.innerHTML = '';
+            const currentStatusKey = currentUser.status || 'online';
+            
+            Object.keys(STATUSES).forEach(key => {
+                const status = STATUSES[key];
+                const div = document.createElement('div');
+                div.className = 'status-option' + (key === currentStatusKey ? ' selected' : '');
+                div.innerHTML = `
+                    <span class="status-emoji">${status.emoji}</span>
+                    <span class="status-label">${status.label}</span>
+                    ${key === currentStatusKey ? '✅' : ''}
+                `;
+                div.onclick = async () => {
+                    await db.ref('users/' + currentUser.uid + '/status').set(key);
+                    currentUser.status = key;
+                    localStorage.setItem('messenger_user', JSON.stringify(currentUser));
+                    statusModal.classList.remove('show');
+                    // Обновим статус в профиле, если открыт
+                    if (profileModal.classList.contains('show')) {
+                        openUserProfile(currentUser.uid);
+                    }
+                };
+                statusList.appendChild(div);
+            });
+        }
+
+        function openStatusModal() {
+            renderStatusList();
+            statusModal.classList.add('show');
+        }
+
+        statusCloseBtn.addEventListener('click', () => {
+            statusModal.classList.remove('show');
+        });
+
         // ========== ПРОФИЛЬ ==========
         profileBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -2244,7 +2326,11 @@
             profileModalAvatar.innerHTML = getAvatarHtml(data.avatar);
             profileModalName.textContent = `${data.firstName} ${data.lastName || ''}`;
             profileModalNumber.textContent = `Номер: ${uid}`;
-            profileModalStatus.textContent = data.status || 'онлайн';
+            
+            const statusKey = data.status || 'offline';
+            const statusData = STATUSES[statusKey] || STATUSES['offline'];
+            profileModalStatus.textContent = `${statusData.emoji} ${statusData.label}`;
+            
             profileModalAbout.textContent = data.about || '—';
             profileModalAge.textContent = data.age || '—';
             profileModalBirthday.textContent = data.birthday || '—';
@@ -2304,6 +2390,15 @@
                 deleteChatBtn.onclick = () => deleteChat(uid);
                 profileActions.appendChild(deleteChatBtn);
             } else {
+                const statusBtn = document.createElement('button');
+                statusBtn.className = 'profile-btn';
+                statusBtn.textContent = '🔄 Сменить статус';
+                statusBtn.onclick = () => {
+                    profileModal.classList.remove('show');
+                    setTimeout(() => openStatusModal(), 300);
+                };
+                profileActions.appendChild(statusBtn);
+
                 const settingsBtnProfile = document.createElement('button');
                 settingsBtnProfile.className = 'profile-btn';
                 settingsBtnProfile.textContent = '⚙️ Открыть настройки';
@@ -2384,7 +2479,6 @@
 
         // ========== ГЛОБАЛЬНАЯ РЕАКЦИЯ В ЧАТЕ ==========
         document.addEventListener('dblclick', async function(e) {
-            // Двойной клик по сообщению
             const msgDiv = e.target.closest('.message');
             if (!msgDiv || !currentChatId) return;
             
@@ -2397,18 +2491,14 @@
             const snap = await msgRef.once('value');
             const data = snap.val();
             
-            // Инициализируем объект реакций, если его нет
             let reactions = data.reactions || {};
             
             if (reactions[currentUser.uid]) {
-                // Если уже есть реакция от текущего пользователя — убираем
                 delete reactions[currentUser.uid];
             } else {
-                // Добавляем реакцию
                 reactions[currentUser.uid] = '❤️';
             }
             
-            // Если реакций больше нет, удаляем поле полностью
             if (Object.keys(reactions).length === 0) {
                 await msgRef.update({ reactions: null });
             } else {
@@ -2537,16 +2627,37 @@
             hideContextMenu();
         });
 
-        // ========== ОТПРАВКА ==========
+        // ========== ОТПРАВКА И ПЕЧАТАНИЕ ==========
+        let typingTimeout = null;
+
         chatSendBtn.addEventListener('click', sendMessage);
         chatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') sendMessage();
+            handleTyping();
         });
+        chatInput.addEventListener('input', handleTyping);
+
+        function handleTyping() {
+            if (!currentChatId || !currentChatUserUid) return;
+            
+            // Отправляем сигнал печатания
+            db.ref('typing/' + currentChatId + '/' + currentUser.uid).set(true);
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                db.ref('typing/' + currentChatId + '/' + currentUser.uid).remove();
+            }, 3000);
+        }
 
         function sendMessage() {
             const text = chatInput.value.trim();
             if (!text && !pendingImageData) return;
             if (!currentChatId) return;
+            
+            // Убираем статус печатания при отправке
+            if (currentChatId && currentChatUserUid) {
+                db.ref('typing/' + currentChatId + '/' + currentUser.uid).remove();
+            }
             
             const msgData = {
                 sender: currentUser.uid,
@@ -2741,6 +2852,7 @@
             document.documentElement.style.setProperty('--accent-color', '#8a5cf5');
             hideContextMenu();
             profileModal.classList.remove('show');
+            statusModal.classList.remove('show');
             settingsModal.classList.remove('show');
         }
 
@@ -2761,9 +2873,7 @@
             return days + 'д';
         }
 
-                // ========== НАЗАД ==========
         function goBack() {
-            // Сначала сбрасываем ID, чтобы не было повторных подписок
             const oldChatId = currentChatId;
             currentChatId = null;
             currentChatUserUid = null;
@@ -2785,6 +2895,7 @@
             
             hideContextMenu();
             profileModal.classList.remove('show');
+            statusModal.classList.remove('show');
             settingsModal.classList.remove('show');
             replyBar.classList.remove('show');
             replyTarget = null;
@@ -2797,18 +2908,16 @@
             }
         }
 
-        // Глобальный перехватчик кликов на кнопку Назад (работает даже сквозь модалки)
         window.addEventListener('click', function(e) {
             const backBtn = e.target.closest('#chatBackBtn');
             if (backBtn) {
                 e.stopImmediatePropagation();
                 e.preventDefault();
-                console.log('🔙 Нажата кнопка Назад через глобальный перехват!');
                 goBack();
             }
         }, true);
 
-        console.log('✅ SAE Chat с реакциями как в Telegram!');
+        console.log('✅ SAE Chat обновлён! Добавлены статусы и "печатает..."');
     </script>
 </body>
 </html>
