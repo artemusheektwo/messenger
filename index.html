@@ -2180,15 +2180,20 @@
         }
 
         // ========== УВЕДОМЛЕНИЯ (ФОН) ==========
+                // ========== УВЕДОМЛЕНИЯ (ФОН) - ИСПРАВЛЕННЫЙ ==========
         function startNotificationListener() {
             if (notificationListener) {
                 db.ref('messages').off('child_added', notificationListener);
                 notificationListener = null;
             }
 
+            // Получаем время последнего прочитанного уведомления, чтобы не спамить
+            const lastNotifiedKey = localStorage.getItem('last_notified_' + currentUser.uid) || '0';
+
             notificationListener = db.ref('messages').on('child_added', (snapshot) => {
                 const chatId = snapshot.key;
-                if (chatId === currentChatId) return;
+                // Не показываем, если мы уже в этом чате
+                if (chatId === currentChatId) return; 
 
                 snapshot.ref.once('value', (msgSnap) => {
                     const allMsgs = msgSnap.val();
@@ -2198,7 +2203,9 @@
                     const lastKey = keys[keys.length - 1];
                     const msg = allMsgs[lastKey];
 
+                    // Проверяем: если это не чужое сообщение или оно уже было показано — пропускаем
                     if (!msg || msg.sender === currentUser.uid) return;
+                    if (lastKey <= lastNotifiedKey) return;
 
                     db.ref('users/' + msg.sender).once('value', (userSnap) => {
                         const userData = userSnap.val();
@@ -2207,7 +2214,11 @@
                             const text = msg.text || '📷 Фото';
                             const avatarHtml = getAvatarHtml(userData.avatar);
                             
+                            // Показываем внутренний тост
                             showToast(avatarHtml, name, text, chatId);
+                            
+                            // Запоминаем, что это сообщение мы уже показали
+                            localStorage.setItem('last_notified_' + currentUser.uid, lastKey);
                         }
                     });
                 });
